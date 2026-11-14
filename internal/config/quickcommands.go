@@ -334,6 +334,68 @@ func (q *QuickCommands) MoveCommand(id, to string) bool {
 	return true
 }
 
+// MergeQuickCommands adds the groups and commands of other, keeping
+// what is here: a group of other's joins the group of the same name
+// here, or is added; a command identical to one already in its group —
+// the same name, text and Enter — is skipped. The groups and commands
+// added get new IDs, and each command keeps the group it came with. It
+// reports how many groups and commands were added, and how many
+// commands were skipped.
+func (q *QuickCommands) MergeQuickCommands(other *QuickCommands) (addedGroups, addedCommands, skipped int) {
+	if other == nil {
+		return 0, 0, 0
+	}
+	// groupIDs are other's groups as ours: the same name joins ours.
+	groupIDs := make(map[string]string, len(other.Groups))
+	for _, g := range other.Groups {
+		if g == nil {
+			continue
+		}
+		if ours := q.groupByName(g.Name); ours != nil {
+			groupIDs[g.ID] = ours.ID
+			continue
+		}
+		groupIDs[g.ID] = q.AddGroup(g.Name).ID
+		addedGroups++
+	}
+	for _, c := range other.Commands {
+		if c == nil {
+			continue
+		}
+		group := groupIDs[c.Group] // "" when it has none, or its group is gone
+		if q.hasQuick(group, c) {
+			skipped++
+			continue
+		}
+		added := *c
+		added.Group = group
+		q.AddCommand(&added, "")
+		addedCommands++
+	}
+	return addedGroups, addedCommands, skipped
+}
+
+// groupByName is the group named name, or nil.
+func (q *QuickCommands) groupByName(name string) *QuickGroup {
+	for _, g := range q.Groups {
+		if g.Name == name {
+			return g
+		}
+	}
+	return nil
+}
+
+// hasQuick is whether the group with the ID already has a command
+// identical to c: the same name, text and Enter.
+func (q *QuickCommands) hasQuick(group string, c *QuickCommand) bool {
+	for _, x := range q.InGroup(group) {
+		if x.Name == c.Name && x.Text == c.Text && x.Enter == c.Enter {
+			return true
+		}
+	}
+	return false
+}
+
 // QuickCommandLines are the lines of a command's text, as they are sent:
 // with Windows line ends as Unix ones, and without the empty lines at its
 // end, which would only send a carriage return of their own. Blanks are

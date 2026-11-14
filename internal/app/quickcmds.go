@@ -1,10 +1,14 @@
 package app
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -41,6 +45,12 @@ type quickState struct {
 	loadErr error
 	noSave  bool
 	saveErr error // why the last save failed, nil once one works
+	// notice is the outcome of the last export or import, shown above
+	// the tab until closed; noticeErr says it is an error. busy is an
+	// export or import under way.
+	notice    string
+	noticeErr bool
+	busy      bool
 
 	group  string // the group shown, "" for All
 	query  string // the search
@@ -170,11 +180,13 @@ func (a *App) quickPanel(c *ui.Context) {
 	})
 }
 
-// quickBanner says why the file could not be read or saved.
+// quickBanner says why the file could not be read or saved, or the
+// outcome of the last export or import.
 func (a *App) quickBanner(c *ui.Context) {
 	q := &a.quickUI
 	var msg string
 	var broken *config.BrokenFileError
+	warn, closable := true, true
 	switch {
 	case q.saveErr != nil:
 		msg = locales.ErrSaveFailed(q.saveErr.Error())
@@ -182,18 +194,30 @@ func (a *App) quickBanner(c *ui.Context) {
 		msg = locales.QuickLoadBroken(filepath.Base(broken.Copy))
 	case q.loadErr != nil:
 		msg = locales.QuickLoadFailed(q.loadErr.Error())
+		// The file not saved over stays said, as long as it is so.
+		closable = !q.noSave
+	case q.notice != "":
+		msg, warn = q.notice, q.noticeErr
 	default:
 		return
 	}
-	ui.Row(c).Gap(8).Padding(4, 8).AlignItems(ui.Center).Background(colors.warningBanner).Children(func() {
-		ui.Icon(c, icons.Get("triangle-alert")).FontSize(13).Shrink(0)
+	row := ui.Row(c).Gap(8).Padding(4, 8).AlignItems(ui.Center)
+	if warn {
+		row.Background(colors.warningBanner)
+	}
+	row.Children(func() {
+		if warn {
+			ui.Icon(c, icons.Get("triangle-alert")).FontSize(13).Shrink(0)
+		}
 		ui.Text(c, msg).Grow(1).MinWidth(0)
-		// The file not saved over stays said, as long as it is so.
-		if !(q.saveErr == nil && q.noSave) && widgets.IconButton(c, "x", locales.Close()).Size(20, 20).Clicked() {
-			if q.saveErr != nil {
+		if closable && widgets.IconButton(c, "x", locales.Close()).Size(20, 20).Clicked() {
+			switch {
+			case q.saveErr != nil:
 				q.saveErr = nil
-			} else {
+			case q.loadErr != nil:
 				q.loadErr = nil
+			default:
+				q.notice = ""
 			}
 		}
 	})
@@ -389,6 +413,20 @@ func (a *App) quickToolbar(c *ui.Context, s *Session, live bool) {
 		if add.Clicked() {
 			a.newQuickCommand()
 		}
+		exp := ui.Button(c, "").Label(locales.QuickExport()).Shrink(0).Disabled(a.quickUI.busy).Children(func() {
+			ui.Icon(c, icons.Get("download")).FontSize(13)
+			ui.Text(c, locales.QuickExport()).SingleLine()
+		})
+		if exp.Clicked() {
+			a.exportQuick()
+		}
+		imp := ui.Button(c, "").Label(locales.QuickImport()).Shrink(0).Disabled(a.quickUI.busy).Children(func() {
+			ui.Icon(c, icons.Get("upload")).FontSize(13)
+			ui.Text(c, locales.QuickImport()).SingleLine()
+		})
+		if imp.Clicked() {
+			a.importQuick()
+		}
 		a.cmdEditorToggle(c)
 		if !live && s != nil {
 			widgets.Muted(c, locales.QuickOffline()).SingleLine().Ellipsis("…").MinWidth(0).Shrink(1)
@@ -405,6 +443,71 @@ func (a *App) quickToolbar(c *ui.Context, s *Session, live bool) {
 			ui.SearchField(c, &a.quickUI.query).Placeholder(placeholder).Label(locales.QuickSearch()).Basis(220).Shrink(1).MinWidth(searchMinWidth)
 		})
 	})
+}
+
+// exportQuick asks where to save the quick commands, in the downloads
+// folder to begin with, and writes them there, off the UI thread, in
+// the form of quickcommands.json. The tab says where they went.
+func (a *App) exportQuick() {
+	q := &a.quickUI
+	data, err := json.MarshalIndent(a.quick(), "", "  ")
+	if err != nil {
+		q.notice, q.noticeErr = locales.QuickExportFailed(err.Error()), true
+		return
+	}
+	data = append(data, '\n')
+	q.busy, q.notice, q.noticeErr = true, "", false
+	name := "quickcommands-" + time.Now().Format("20060102") + ".json"
+	title, start := locales.QuickExportTitle(), filepath.Join(a.plat.DownloadsDir(), name)
+	go func() {
+		path, err := a.plat.SaveFile(WindowMain, title, start, locales.QuickFileType(), []string{"json"})
+		if path != "" && err == nil {
+			err = os.WriteFile(path, data, 0o644)
+		}
+		a.post(func() {
+			q.busy = false
+			if path == "" && err == nil { // canceled
+				return
+			}
+			if err != nil {
+				q.notice, q.noticeErr = locales.QuickExportFailed(err.Error()), true
+				return
+			}
+			q.notice, q.noticeErr = locales.QuickExported(tildePath(path, a.home(), runtime.GOOS)), false
+		})
+	}()
+}
+
+// importQuick asks for a file of quick commands, reads and merges it,
+// off the UI thread. The tab says how many were added and skipped.
+func (a *App) importQuick() {
+	q := &a.quickUI
+	q.busy, q.notice, q.noticeErr = true, "", false
+	title := locales.QuickImportTitle()
+	go func() {
+		path, err := a.plat.OpenFileOfType(WindowMain, title, locales.QuickFileType(), []string{"json"})
+		var other *config.QuickCommands
+		if path != "" && err == nil {
+			var data []byte
+			data, err = os.ReadFile(path)
+			if err == nil {
+				other, err = config.ParseQuickCommands(data)
+			}
+		}
+		a.post(func() {
+			q.busy = false
+			if path == "" && err == nil { // canceled
+				return
+			}
+			if err != nil {
+				q.notice, q.noticeErr = locales.QuickImportFailed(err.Error()), true
+				return
+			}
+			groups, added, skipped := a.quick().MergeQuickCommands(other)
+			a.saveQuick()
+			q.notice, q.noticeErr = locales.QuickImportResult(added, groups, skipped), false
+		})
+	}()
 }
 
 // searchMinWidth is the least width of the toolbar's search, in DIPs.

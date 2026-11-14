@@ -146,6 +146,85 @@ func TestQuickCommandsSend(t *testing.T) {
 	p.SetLocale("en")
 }
 
+// Export writes the groups and commands to a file in the form of
+// quickcommands.json, and import merges one back: what is already here
+// is kept, the new ones are added, the identical ones skipped. The tab
+// says where the export went, and how the import went.
+func TestQuickCommandsExportImport(t *testing.T) {
+	a, p, _, _, tt := barTerm(t)
+	demoQuick(a, false)
+	quickTab(t, tt)
+
+	// Export, to the file the dialog returns, starting in the
+	// downloads folder with today's date in the name.
+	out := filepath.Join(t.TempDir(), "quickcommands-export.json")
+	p.pickSave(out, nil)
+	if err := tt.Click(locales.QuickExport()); err != nil {
+		t.Fatal(err)
+	}
+	p.until(t, "export done", func() bool { return !a.quickUI.busy })
+	tt.Frame()
+	picks := p.savePicks()
+	wantStart := filepath.Join(p.downloads, "quickcommands-"+time.Now().Format("20060102")+".json")
+	if len(picks) != 1 || picks[0].parent != WindowMain || picks[0].path != wantStart || !slices.Equal(picks[0].extensions, []string{"json"}) {
+		t.Fatalf("save asked %+v", picks)
+	}
+	if !tt.HasText(locales.QuickExported(out)) {
+		t.Errorf("no export notice; texts %q", tt.Texts())
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exported, err := config.ParseQuickCommands(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(exported.Groups) != 3 || len(exported.Commands) != 10 {
+		t.Errorf("exported %+v", exported)
+	}
+
+	// Importing the export itself adds nothing: every one is identical.
+	p.pickTyped(out)
+	if err := tt.Click(locales.QuickImport()); err != nil {
+		t.Fatal(err)
+	}
+	p.until(t, "import done", func() bool { return !a.quickUI.busy })
+	tt.Frame()
+	if picks := p.typedPicks(); len(picks) != 1 || picks[0].parent != WindowMain || !slices.Equal(picks[0].extensions, []string{"json"}) {
+		t.Fatalf("open asked %+v", picks)
+	}
+	if !tt.HasText(locales.QuickImportResult(0, 0, 10)) {
+		t.Errorf("no import notice; texts %q", tt.Texts())
+	}
+
+	// A file with a new group and commands, one of them identical.
+	in := filepath.Join(t.TempDir(), "quickcommands-import.json")
+	file := `{"version": 1,
+ "groups": [{"id": "g1", "name": "Common"}, {"id": "g2", "name": "New group"}],
+ "commands": [{"id": "c1", "group": "g1", "name": "Disk", "text": "df -h", "enter": true},
+              {"id": "c2", "group": "g1", "name": "Uptime", "text": "uptime", "enter": true},
+              {"id": "c3", "group": "g2", "name": "List", "text": "docker ps", "enter": true}]}`
+	if err := os.WriteFile(in, []byte(file), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p.pickTyped(in)
+	if err := tt.Click(locales.QuickImport()); err != nil {
+		t.Fatal(err)
+	}
+	p.until(t, "second import done", func() bool { return !a.quickUI.busy })
+	tt.Frame()
+	if !tt.HasText(locales.QuickImportResult(2, 1, 1)) {
+		t.Errorf("no second import notice; texts %q", tt.Texts())
+	}
+	if !tt.HasText("Uptime") || !tt.HasText("List") {
+		t.Errorf("merged commands not shown; texts %q", tt.Texts())
+	}
+	if saved := savedQuick(t); len(saved.Commands) != 12 || len(saved.Groups) != 4 {
+		t.Errorf("saved %+v", saved)
+	}
+}
+
 // The buttons of a session that is not connected, or of a new tab, are
 // shown but send nothing.
 func TestQuickCommandsDisabled(t *testing.T) {

@@ -1493,6 +1493,49 @@
       }
     }
   },
+  "quickExport": "Export…",
+  "quickImport": "Import…",
+  "quickExportTitle": "Export quick commands",
+  "quickImportTitle": "Import quick commands",
+  "quickFileType": "JSON file",
+  "quickExported": "Quick commands exported to {file}.",
+  "@quickExported": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "quickExportFailed": "Could not export the quick commands ({error}).",
+  "@quickExportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "quickImportFailed": "Could not import the quick commands ({error}).",
+  "@quickImportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "quickImportResult": "Imported {imported, plural, one {# command} other {# commands}} ({groups} new groups), skipped {skipped}.",
+  "@quickImportResult": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "groups": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
   "cmdEditor": "Command editor",
   "cmdEditorSaveAs": "Save as command",
   "cmdEditorClear": "Clear",

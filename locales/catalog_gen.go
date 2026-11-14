@@ -9034,6 +9034,98 @@ func (msgs Messages) QuickLoadFailed(error string) string {
 	return Catalog.Format(msgs.locale, "quickLoadFailed", map[string]any{"error": error})
 }
 
+// QuickExport says "Export…"
+// in the language the app shows.
+func QuickExport() string { return In(i18n.Locale()).QuickExport() }
+
+// QuickExport says "Export…"
+// in the language of msgs.
+func (msgs Messages) QuickExport() string {
+	return Catalog.Format(msgs.locale, "quickExport", nil)
+}
+
+// QuickImport says "Import…"
+// in the language the app shows.
+func QuickImport() string { return In(i18n.Locale()).QuickImport() }
+
+// QuickImport says "Import…"
+// in the language of msgs.
+func (msgs Messages) QuickImport() string {
+	return Catalog.Format(msgs.locale, "quickImport", nil)
+}
+
+// QuickExportTitle says "Export quick commands"
+// in the language the app shows.
+func QuickExportTitle() string { return In(i18n.Locale()).QuickExportTitle() }
+
+// QuickExportTitle says "Export quick commands"
+// in the language of msgs.
+func (msgs Messages) QuickExportTitle() string {
+	return Catalog.Format(msgs.locale, "quickExportTitle", nil)
+}
+
+// QuickImportTitle says "Import quick commands"
+// in the language the app shows.
+func QuickImportTitle() string { return In(i18n.Locale()).QuickImportTitle() }
+
+// QuickImportTitle says "Import quick commands"
+// in the language of msgs.
+func (msgs Messages) QuickImportTitle() string {
+	return Catalog.Format(msgs.locale, "quickImportTitle", nil)
+}
+
+// QuickFileType says "JSON file"
+// in the language the app shows.
+func QuickFileType() string { return In(i18n.Locale()).QuickFileType() }
+
+// QuickFileType says "JSON file"
+// in the language of msgs.
+func (msgs Messages) QuickFileType() string {
+	return Catalog.Format(msgs.locale, "quickFileType", nil)
+}
+
+// QuickExported says "Quick commands exported to {file}."
+// in the language the app shows.
+func QuickExported(file string) string { return In(i18n.Locale()).QuickExported(file) }
+
+// QuickExported says "Quick commands exported to {file}."
+// in the language of msgs.
+func (msgs Messages) QuickExported(file string) string {
+	return Catalog.Format(msgs.locale, "quickExported", map[string]any{"file": file})
+}
+
+// QuickExportFailed says "Could not export the quick commands ({error})."
+// in the language the app shows.
+func QuickExportFailed(error string) string { return In(i18n.Locale()).QuickExportFailed(error) }
+
+// QuickExportFailed says "Could not export the quick commands ({error})."
+// in the language of msgs.
+func (msgs Messages) QuickExportFailed(error string) string {
+	return Catalog.Format(msgs.locale, "quickExportFailed", map[string]any{"error": error})
+}
+
+// QuickImportFailed says "Could not import the quick commands ({error})."
+// in the language the app shows.
+func QuickImportFailed(error string) string { return In(i18n.Locale()).QuickImportFailed(error) }
+
+// QuickImportFailed says "Could not import the quick commands ({error})."
+// in the language of msgs.
+func (msgs Messages) QuickImportFailed(error string) string {
+	return Catalog.Format(msgs.locale, "quickImportFailed", map[string]any{"error": error})
+}
+
+// QuickImportResult says "Imported {imported, plural, one {# command} other {# commands}} ({groups} new groups), skipped {skipped}."
+// in the language the app shows.
+func QuickImportResult(imported int, groups int, skipped int) string {
+	return In(i18n.Locale()).QuickImportResult(imported, groups, skipped)
+}
+
+// QuickImportResult says "Imported {imported, plural, one {# command} other {# commands}} ({groups} new groups), skipped {skipped}."
+// in the language of msgs.
+func (msgs Messages) QuickImportResult(imported int, groups int, skipped int) string {
+	return Catalog.Format(msgs.locale, "quickImportResult", map[string]any{"imported": imported, "groups": groups, "skipped": skipped})
+}
+
 // CmdEditor says "Command editor"
 // in the language the app shows.
 func CmdEditor() string { return In(i18n.Locale()).CmdEditor() }

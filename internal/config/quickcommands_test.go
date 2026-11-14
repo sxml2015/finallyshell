@@ -205,6 +205,88 @@ func TestQuickCommandsEdits(t *testing.T) {
 	}
 }
 
+// Merging adds the groups and commands of the other, keeping what is
+// here: a group joins the one of the same name, a command identical to
+// one already in its group is skipped, and what is added gets new IDs,
+// each command in the group it came with.
+func TestQuickCommandsMerge(t *testing.T) {
+	q := NewQuickCommands()
+	common := q.AddGroup("Common")
+	q.AddCommand(&QuickCommand{Name: "Disk", Group: common.ID, Text: "df -h", Enter: true}, "")
+	other := &QuickCommands{
+		Version: QuickCommandsVersion,
+		Groups: []*QuickGroup{
+			{ID: "g1", Name: "Common"},
+			{ID: "g2", Name: "Docker"},
+		},
+		Commands: []*QuickCommand{
+			{ID: "c1", Group: "g1", Name: "Disk", Text: "df -h", Enter: true},
+			{ID: "c2", Group: "g1", Name: "Memory", Text: "free -m", Enter: true},
+			{ID: "c3", Group: "g2", Name: "List", Text: "docker ps", Enter: true},
+			{ID: "c4", Name: "Uptime", Text: "uptime", Enter: true},
+			{ID: "c5", Group: "gone", Name: "Orphan", Text: "id", Enter: true},
+			{ID: "c6", Group: "g1", Name: "Disk", Text: "df -h", Enter: false},
+		},
+	}
+	groups, added, skipped := q.MergeQuickCommands(other)
+	if groups != 1 || added != 5 || skipped != 1 {
+		t.Fatalf("merged %d groups, %d commands, %d skipped", groups, added, skipped)
+	}
+	if len(q.Groups) != 2 {
+		t.Fatalf("groups %+v", q.Groups)
+	}
+	docker := q.Groups[1]
+	if docker.Name != "Docker" || docker.ID == "g2" {
+		t.Errorf("new group %+v", docker)
+	}
+	byName := func(name string) *QuickCommand {
+		for _, c := range q.Commands {
+			if c.Name == name {
+				return c
+			}
+		}
+		return nil
+	}
+	if c := byName("Memory"); c == nil || c.Group != common.ID {
+		t.Errorf("Memory in %+v", c)
+	}
+	if c := byName("List"); c == nil || c.Group != docker.ID {
+		t.Errorf("List in %+v", c)
+	}
+	for _, name := range []string{"Uptime", "Orphan"} {
+		if c := byName(name); c == nil || c.Group != "" {
+			t.Errorf("%s in %+v", name, c)
+		}
+	}
+	// Nothing added keeps an ID of the other's: every one is new.
+	others := map[string]bool{}
+	for _, c := range other.Commands {
+		others[c.ID] = true
+	}
+	for _, id := range cmdIDs(q.Commands) {
+		if others[id] {
+			t.Errorf("kept the other's ID %q", id)
+		}
+	}
+	disks := 0
+	for _, c := range q.InGroup(common.ID) {
+		if c.Name == "Disk" {
+			disks++
+		}
+	}
+	if disks != 2 {
+		t.Errorf("Common has %d Disks", disks)
+	}
+	// Merging the same list again adds nothing: every one is identical
+	// now, and the groups are all here.
+	if groups, added, skipped := q.MergeQuickCommands(other); groups != 0 || added != 0 || skipped != 6 {
+		t.Errorf("again: %d groups, %d commands, %d skipped", groups, added, skipped)
+	}
+	if groups, added, skipped := q.MergeQuickCommands(nil); groups != 0 || added != 0 || skipped != 0 {
+		t.Errorf("nil: %d groups, %d commands, %d skipped", groups, added, skipped)
+	}
+}
+
 func TestQuickCommandLines(t *testing.T) {
 	for _, tc := range []struct {
 		text string
