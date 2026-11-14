@@ -83,8 +83,12 @@ func TestQuickCommandsSend(t *testing.T) {
 	a, p, s, conn, tt := barTerm(t)
 	demoQuick(a, false)
 	quickTab(t, tt)
-	if !tt.HasText("Disk") || !tt.HasText("Common") || !tt.HasText(locales.QuickLines(3)) || !tt.HasText("df -h") {
+	if !tt.HasText("Disk") || !tt.HasText("Common") || !tt.HasText(locales.QuickLines(3)) {
 		t.Fatalf("tab: %q", tt.Texts())
+	}
+	// The button shows the name only, never the command's text.
+	if tt.HasText("df -h") {
+		t.Fatalf("the command's text shows: %q", tt.Texts())
 	}
 	saveShot(t, tt, "quick-commands-en.png")
 	for _, tc := range []struct{ button, want string }{
