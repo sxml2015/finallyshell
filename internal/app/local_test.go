@@ -44,18 +44,18 @@ func untilScreen(t *testing.T, p *fakePlatform, s *Session, want string) {
 	})
 }
 
-// headerLocal clicks the session list's Local terminal button.
+// headerLocal clicks the tab strip's Local terminal button.
 func headerLocal(t *testing.T, tt *ui.Tester) {
 	t.Helper()
-	set, ok := tt.Find(locales.Options())
+	r, ok := tt.AccessByRole(ui.RoleButton, locales.LocalTerminal())
 	if !ok {
-		t.Fatal("no options button")
+		t.Fatal("no Local terminal button")
 	}
-	tt.ClickAt(set.X+set.W+2+set.W/2, set.Y+set.H/2)
+	tt.ClickAt(r.Bounds.X+r.Bounds.W/2, r.Bounds.Y+r.Bounds.H/2)
 }
 
-// The header's button opens a local terminal at the end of the list and
-// selects it; its program runs, and the row, the monitor and the panel
+// The strip's button opens a local terminal at the end of the tabs and
+// selects it; its program runs, and the tab, the monitor and the panel
 // say what it is.
 func TestLocalTerminalFromHeader(t *testing.T) {
 	a, p, tt := localApp(t, testShell)
@@ -72,7 +72,7 @@ func TestLocalTerminalFromHeader(t *testing.T) {
 
 	headerLocal(t, tt)
 	if len(a.sessions) != 3 || a.active != 2 {
-		t.Fatalf("%d rows, active %d", len(a.sessions), a.active)
+		t.Fatalf("%d tabs, active %d", len(a.sessions), a.active)
 	}
 	s := a.sessions[2]
 	if !s.isLocal() || s.isNewTab() || s.Host != nil || s.status != statusConnected || s.term() == nil {
@@ -80,10 +80,8 @@ func TestLocalTerminalFromHeader(t *testing.T) {
 	}
 	untilScreen(t, p, s, "ready")
 	tt.Frame()
-	for _, want := range []string{locales.SessionsTitle(2), locales.LocalTerminal(), locales.LocalThisComputer()} {
-		if !tt.HasText(want) {
-			t.Errorf("no %q; texts %q", want, tt.Texts())
-		}
+	if !tt.HasText(locales.LocalTerminal()) {
+		t.Errorf("no tab; texts %q", tt.Texts())
 	}
 	if tt.HasText("IP ") || tt.HasText(locales.UptimeUnknown()) {
 		t.Errorf("the monitor shows a server; texts %q", tt.Texts())
@@ -100,7 +98,7 @@ func TestLocalTerminalFromHeader(t *testing.T) {
 	a.active = 1
 	headerLocal(t, tt)
 	if len(a.sessions) != 4 || a.active != 1 || !a.sessions[3].isLocal() || a.current() != web {
-		t.Errorf("%d rows, active %d", len(a.sessions), a.active)
+		t.Errorf("%d tabs, active %d", len(a.sessions), a.active)
 	}
 
 	// Nothing of it is saved: the hosts and settings are as they were.
@@ -109,18 +107,30 @@ func TestLocalTerminalFromHeader(t *testing.T) {
 	}
 }
 
+// startLocal clicks the start page's Local terminal button, by the
+// connection manager's: left of it with hosts, under it without.
+func startLocal(t *testing.T, tt *ui.Tester, withHosts bool) {
+	t.Helper()
+	mgr, ok := tt.AccessByRole(ui.RoleButton, locales.ConnectionManager())
+	if !ok {
+		t.Fatalf("no connection manager button; texts %q", tt.Texts())
+	}
+	if withHosts {
+		tt.ClickAt(mgr.Bounds.X-18, mgr.Bounds.Y+mgr.Bounds.H/2)
+		return
+	}
+	tt.ClickAt(mgr.Bounds.X+mgr.Bounds.W/2, mgr.Bounds.Y+mgr.Bounds.H+20)
+}
+
 // The start page's entry turns its new tab into a local terminal, as
 // connecting there does; on the page without hosts too.
 func TestLocalTerminalFromStartPage(t *testing.T) {
 	a, p, tt := localApp(t, testShell)
-	a.setLeftPage(leftConnections) // the header's button is the sessions page's
 	tt.Frame()
 	tab := a.sessions[0]
-	if err := tt.Click(locales.LocalTerminal()); err != nil {
-		t.Fatalf("%v; texts %q", err, tt.Texts())
-	}
+	startLocal(t, tt, true)
 	if len(a.sessions) != 1 || a.sessions[0] != tab || !tab.isLocal() || a.active != 0 {
-		t.Fatalf("%d rows, active %d, local %v", len(a.sessions), a.active, tab.isLocal())
+		t.Fatalf("%d tabs, active %d, local %v", len(a.sessions), a.active, tab.isLocal())
 	}
 	untilScreen(t, p, tab, "ready")
 
@@ -131,13 +141,10 @@ func TestLocalTerminalFromStartPage(t *testing.T) {
 	tt2 := ui.NewTester(b.View, 1280, 820)
 	q.tt = tt2
 	t.Cleanup(b.CloseAll)
-	b.setLeftPage(leftConnections)
 	tt2.Frame()
-	if err := tt2.Click(locales.LocalTerminal()); err != nil {
-		t.Fatalf("empty page: %v; texts %q", err, tt2.Texts())
-	}
+	startLocal(t, tt2, false)
 	if len(b.sessions) != 1 || !b.sessions[0].isLocal() {
-		t.Fatalf("empty page: %d rows", len(b.sessions))
+		t.Fatalf("empty page: %d tabs", len(b.sessions))
 	}
 	untilScreen(t, q, b.sessions[0], "ready")
 }
@@ -278,9 +285,9 @@ func TestLocalTerminalPanels(t *testing.T) {
 	}
 }
 
-// The row's menu: Duplicate opens another local terminal, Rename names
+// The tab's menu: Duplicate opens another local terminal, Rename names
 // it, Disconnect ends the program, Reconnect starts it again, Close
-// closes it. Double-clicking the row of one that ended starts it again.
+// closes it. Double-clicking the tab of one that ended starts it again.
 func TestLocalTerminalMenu(t *testing.T) {
 	a, p, tt := localApp(t, testShell)
 	a.openLocal(nil)
@@ -288,8 +295,12 @@ func TestLocalTerminalMenu(t *testing.T) {
 	untilScreen(t, p, s, "ready")
 	tt.Frame()
 
-	// Its row is the one that says "This computer"; Rename names it.
-	tt.RightClickAt(rowCenter(t, tt, locales.LocalThisComputer()))
+	// Its tab is the one named "Local terminal"; Rename names it.
+	r, ok := tt.AccessByRole(ui.RoleTab, locales.LocalTerminal())
+	if !ok {
+		t.Fatalf("no local tab; texts %q", tt.Texts())
+	}
+	tt.RightClickAt(r.Bounds.X+r.Bounds.W/2, r.Bounds.Y+r.Bounds.H/2)
 	items := tt.Menu()
 	for _, want := range []string{locales.Reconnect(), locales.DuplicateSession(), locales.Disconnect(), locales.Rename(), locales.Close()} {
 		if !slices.Contains(items, want) {
@@ -315,16 +326,16 @@ func TestLocalTerminalMenu(t *testing.T) {
 	}
 	s.setName("scratch")
 	tt.Frame()
-	row := func() (float32, float32) { return rowCenter(t, tt, "scratch") }
+	tab := func() (float32, float32) { return tabCenter(t, tt, "scratch") }
 
 	// Duplicate: another local terminal, a program of its own.
-	tt.RightClickAt(row())
+	tt.RightClickAt(tab())
 	if err := tt.ChooseMenuItem(locales.DuplicateSession()); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
 	if len(a.sessions) != 3 || !a.sessions[2].isLocal() || a.sessions[2] == s || a.current() != a.sessions[2] {
-		t.Fatalf("duplicate: %d rows, active %d", len(a.sessions), a.active)
+		t.Fatalf("duplicate: %d tabs, active %d", len(a.sessions), a.active)
 	}
 	dup := a.sessions[2]
 	untilScreen(t, p, dup, "ready")
@@ -335,7 +346,7 @@ func TestLocalTerminalMenu(t *testing.T) {
 	tt.Frame()
 
 	// Disconnect, then Reconnect.
-	tt.RightClickAt(row())
+	tt.RightClickAt(tab())
 	if err := tt.ChooseMenuItem(locales.Disconnect()); err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +354,7 @@ func TestLocalTerminalMenu(t *testing.T) {
 	if s.status != statusClosed || s.term() != nil || !tt.HasText(locales.StatusDisconnected()) {
 		t.Fatalf("disconnect: status %v; texts %q", s.status, tt.Texts())
 	}
-	tt.RightClickAt(row())
+	tt.RightClickAt(tab())
 	if err := tt.ChooseMenuItem(locales.Reconnect()); err != nil {
 		t.Fatal(err)
 	}
@@ -355,13 +366,13 @@ func TestLocalTerminalMenu(t *testing.T) {
 	// Close: the program ends with the tab.
 	term := s.term()
 	tt.Frame()
-	tt.RightClickAt(row())
+	tt.RightClickAt(tab())
 	if err := tt.ChooseMenuItem(locales.Close()); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
 	if slices.Contains(a.sessions, s) || s.term() != nil {
-		t.Fatalf("close: %d rows", len(a.sessions))
+		t.Fatalf("close: %d tabs", len(a.sessions))
 	}
 	p.until(t, "the program to end", func() bool {
 		select {
@@ -397,7 +408,7 @@ func TestLocalTerminalExit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if s.status != statusConnected || a.current() != s || len(a.sessions) != 2 {
-		t.Fatalf("status %v, rows %d", s.status, len(a.sessions))
+		t.Fatalf("status %v, tabs %d", s.status, len(a.sessions))
 	}
 	untilScreen(t, p, s, "ready")
 	s.term().Send([]byte("bye\r"))

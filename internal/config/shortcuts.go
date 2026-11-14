@@ -22,8 +22,9 @@ type Shortcuts struct {
 	// FocusCommandBar moves the keyboard to the command bar under the
 	// terminal, and back.
 	FocusCommandBar string `json:"focusCommandBar,omitempty"`
-	// SwitchLeftPanel switches the panel under the server monitor between
-	// the session tabs and the connections.
+	// SwitchLeftPanel moves the keyboard to the connections panel's
+	// search, and back to the terminal. The field's name is from when
+	// the panel switched between the session tabs and the connections.
 	SwitchLeftPanel string `json:"switchLeftPanel,omitempty"`
 	// ToggleBottomPanel collapses the bottom panel under the terminal to
 	// its row of tabs, and opens it again.

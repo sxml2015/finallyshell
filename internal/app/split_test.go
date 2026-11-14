@@ -46,6 +46,16 @@ func dividers(a *App, tt *ui.Tester) []divider {
 	const h = winH
 	mainX := func() float32 { return a.sideWidth + 1 }
 	mainW := func() float32 { return winW - mainX() }
+	// mainY is where the main area starts, under the tab strip.
+	mainY := func() float32 {
+		if len(a.sessions) == 0 {
+			return 0
+		}
+		if tab, ok := tt.AccessByRole(ui.RoleTab, a.sessions[a.active].label()); ok {
+			return tab.Bounds.Y + tab.Bounds.H
+		}
+		return 0
+	}
 	return []divider{
 		{
 			name: "sidebar", size: &a.sideWidth, limits: sidebarLimits,
@@ -59,8 +69,8 @@ func dividers(a *App, tt *ui.Tester) []divider {
 		},
 		{
 			name: "terminal", size: &a.terminalPct, vertical: true, percent: true, limits: terminalLimits,
-			at:   func() (float32, float32) { return mainX() + mainW()/2, a.terminalPct/100*(h-1) + 0.5 },
-			room: func() float32 { return h - 1 },
+			at:   func() (float32, float32) { return mainX() + mainW()/2, mainY() + a.terminalPct/100*(h-mainY()-1) + 0.5 },
+			room: func() float32 { return h - mainY() - 1 },
 		},
 		{
 			name: "tree", size: &a.treeWidth, limits: treeLimits,
@@ -289,7 +299,7 @@ func TestDraggingDividersResizesTerminal(t *testing.T) {
 	if _, rows := told("the shortest size"); rows < 4 {
 		t.Errorf("shortest terminal: %d rows", rows)
 	}
-	for _, want := range []string{"IP 45.56.78.90", "Sessions (1)", "web-1", "lib64", "libacl.so.1", locales.TabTransfers()} {
+	for _, want := range []string{"IP 45.56.78.90", "web-1", "lib64", "libacl.so.1", locales.TabTransfers()} {
 		if w, _ := shownWidth(tt, want); w < 20 {
 			t.Errorf("least panes: %q hidden (%.1f DIPs wide)", want, w)
 		}
@@ -297,7 +307,7 @@ func TestDraggingDividersResizesTerminal(t *testing.T) {
 	saveShot(t, tt, "split-least.png")
 	ds[1].drag(tt, 2000)
 	if w, _ := shownWidth(tt, "web-1"); w < 20 {
-		t.Error("the tallest monitor hides the sessions")
+		t.Error("the tallest monitor hides the connections")
 	}
 	ds[0].drag(tt, 2000)
 	ds[2].drag(tt, 2000)

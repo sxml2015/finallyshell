@@ -205,11 +205,9 @@ type Settings struct {
 	// "Close window after connecting", checked, does.
 	KeepManagerOpen bool `json:"keepManagerOpen,omitempty"`
 
-	// The panel under the server monitor, this device's own layout.
+	// The connections panel under the server monitor, this device's own
+	// layout.
 	//
-	// LeftPanelPage is the page it shows: "" for the session tabs,
-	// LeftPanelConnections for the tree of the saved connections.
-	LeftPanelPage string `json:"leftPanelPage,omitempty"`
 	// ConnectionTreeExpanded are the IDs of the folders open in that
 	// tree, which stay as folders are renamed and moved: nil, before the
 	// tree's folders were first opened or closed, opens every folder, and
@@ -269,10 +267,6 @@ type Settings struct {
 	// leaves without a city or ISP, while locations are shown.
 	GeoOnline bool `json:"geoOnline,omitempty"`
 }
-
-// LeftPanelConnections is Settings.LeftPanelPage showing the
-// connections.
-const LeftPanelConnections = "connections"
 
 // PanelRight is Settings.BottomPanelSide with the panel, and
 // Settings.MonitorSide with the monitor, in the column on the terminal's

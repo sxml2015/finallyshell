@@ -141,10 +141,15 @@ type App struct {
 	secrets   secretStore       // the system's credential store (secrets.go)
 	sessions  []*Session        // new tabs included
 	active    int
-	sessList  ui.ListState
-	start     startState // the start page shown while no row is selected
+	start     startState // the start page shown while no tab is selected
 
-	rename renameState // the session row being renamed (rename.go)
+	// sessionTabsScroll is how far the session tabs are scrolled
+	// sideways, where they do not fit; scrolledTab is the session the
+	// strip last scrolled to, by its ID (sessiontabs.go).
+	sessionTabsScroll ui.ScrollState
+	scrolledTab       int64
+
+	rename renameState // the session tab being renamed (rename.go)
 	// notices are toasts asked for between frames, as by a goroutine,
 	// which the next frame shows (paneview.go).
 	notices []string
@@ -191,8 +196,8 @@ type App struct {
 	// The connection manager's window.
 	manager managerState
 
-	// The left panel's page, and the tree of the Connections page
-	// (conntree.go).
+	// The left panel's connections tree (conntree.go), and what it keeps
+	// besides the tree.
 	left     leftPanel
 	connTree managerState
 
@@ -307,7 +312,7 @@ func New(plat Platform) *App {
 	a.settings = config.LoadSettings()
 	a.loadAppearance()
 	a.restoreLayout()
-	a.restoreLeftPanel()
+	a.restoreConnTree()
 	a.transfers.init()
 	return a
 }
@@ -350,24 +355,25 @@ func (a *App) cycle(d int) {
 	}
 }
 
-// sidebar is the monitor over the session panel, or the session panel
-// alone while the monitor is on the right (rightcolumn.go), monitorPct
-// kept for when it comes back.
+// sidebar is the monitor over the connections panel, or the connections
+// panel alone while the monitor is on the right (rightcolumn.go),
+// monitorPct kept for when it comes back.
 func (a *App) sidebar(c *ui.Context) {
 	ui.Column(c).Fill().Background(colors.sidebar).Children(func() {
 		if a.monitorOnRight() {
-			a.sessionPanel(c)
+			a.connectionPanel(c)
 			return
 		}
-		split := ui.SplitVerticalPercent(c, &a.monitorPct, func() { a.monitorPanel(c) }, func() { a.sessionPanel(c) }).SplitReset(defaultMonitorPct).Fill()
+		split := ui.SplitVerticalPercent(c, &a.monitorPct, func() { a.monitorPanel(c) }, func() { a.connectionPanel(c) }).SplitReset(defaultMonitorPct).Fill()
 		a.splitMoved(c, split, &a.monitorPct, monitorLimits)
 	})
 }
 
-// mainArea is the terminal over the bottom panel, or over its tabs alone
-// while it is collapsed (panelhide.go); the terminal beside the panel in
-// the right column, or beside the strip that shows it while it is hidden
-// (rightcolumn.go); or a panel row's panel (paneltab.go). With the
+// mainArea is the session tabs over the terminal, the terminal over the
+// bottom panel, or over its tabs alone while it is collapsed
+// (panelhide.go); the terminal beside the panel in the right column, or
+// beside the strip that shows it while it is hidden (rightcolumn.go); or
+// a panel row's panel (paneltab.go), its tabs over it too. With the
 // monitor on the right, the right column holds it too, on top, over the
 // panel when that is there.
 func (a *App) mainArea(c *ui.Context) {
@@ -375,9 +381,19 @@ func (a *App) mainArea(c *ui.Context) {
 	if a.monitorOnRight() {
 		monitor = func() { a.rightMonitor(c) }
 	}
-	terminal := func() { a.terminalArea(c) }
+	// withTabs puts the session tabs over main: the terminal, or a panel
+	// row's panel.
+	withTabs := func(main func()) func() {
+		return func() {
+			ui.Column(c).Fill().Children(func() {
+				a.sessionTabStrip(c)
+				ui.Column(c).Grow(1).MinHeight(0).FillWidth().Children(main)
+			})
+		}
+	}
+	terminal := withTabs(func() { a.terminalArea(c) })
 	if s := a.current(); s.isPanelTab() {
-		a.withRightColumn(c, func() { a.panelArea(c, s) }, monitor, nil)
+		a.withRightColumn(c, withTabs(func() { a.panelArea(c, s) }), monitor, nil)
 		return
 	}
 	if a.panelOnRight() {
@@ -387,11 +403,11 @@ func (a *App) mainArea(c *ui.Context) {
 		case monitor != nil:
 			a.withRightColumn(c, terminal, func() { a.monitorOverTabs(c) }, nil)
 		default:
-			a.hiddenRightMainArea(c)
+			a.hiddenRightMainArea(c, terminal)
 		}
 		return
 	}
-	a.withRightColumn(c, func() { a.terminalOverPanel(c) }, monitor, nil)
+	a.withRightColumn(c, withTabs(func() { a.terminalOverPanel(c) }), monitor, nil)
 }
 
 // terminalOverPanel is the terminal over the bottom panel, or over its
@@ -464,7 +480,7 @@ func (a *App) setLanguage(tag string) {
 	a.redraw()
 }
 
-// openSession opens a session to h: in the selected row when it is a new
+// openSession opens a session to h: in the selected tab when it is a new
 // tab, else in a tab of its own.
 func (a *App) openSession(h *config.Host) { a.openSessionIn(a.selectedNewTab(), h) }
 
@@ -515,7 +531,7 @@ func (a *App) reconnect(s *Session) {
 	a.connect(s, a.passwords[s.Host.ID])
 }
 
-// closeSession closes the row of s: its session, with its panel row, or
+// closeSession closes the tab of s: its session, with its panel row, or
 // a panel row alone, which ends nothing.
 func (a *App) closeSession(s *Session) {
 	i := slices.Index(a.sessions, s)
@@ -558,10 +574,10 @@ func (a *App) CloseAll() {
 	}
 }
 
-// moveSessions moves the rows dragged before the row to, as the list
-// asks. A session takes its panel row along, right below it; a panel row
-// does not move alone, and a drop between a session and its panel row
-// goes below the panel row.
+// moveSessions moves the tabs dragged before the tab to, as the tab
+// strip asks. A session takes its panel row along, right after it; a
+// panel row does not move alone, and a drop between a session and its
+// panel row goes below the panel row.
 func (a *App) moveSessions(rows []int, to int) {
 	cur := a.current()
 	moved := make([]*Session, 0, len(rows))

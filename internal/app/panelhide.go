@@ -159,7 +159,12 @@ func (a *App) bottomPanelMenu(m *ui.Menu) {
 // toward the last tab. Sideways scrolling, and any while they fit, goes on
 // to the container as it would without it.
 func (a *App) tabsWheel(ev ui.InputEvent) bool {
-	s := &a.panelTabsScroll
+	return scrollTabsSideways(&a.panelTabsScroll, ev)
+}
+
+// scrollTabsSideways is tabsWheel for the tabs scrolled by s: the bottom
+// panel's, and the session tabs' (sessiontabs.go).
+func scrollTabsSideways(s *ui.ScrollState, ev ui.InputEvent) bool {
 	if ev.Kind != ui.InputScroll || ev.DX != 0 || ev.DY == 0 || s.MaxX <= 0 || ev.Mods&ui.Ctrl != 0 {
 		return false
 	}

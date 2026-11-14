@@ -19,7 +19,7 @@ import (
 // Windows, in the home folder.
 //
 // It is a Session with local set and no Host, so it is neither a new tab
-// nor a session of a server: its row, terminal, find bar, command bar and
+// nor a session of a server: its tab, terminal, find bar, command bar and
 // the Commands tab work as a session's, sending to the program, and the
 // Transfers tab shows the queue of every session as on any tab; what
 // reads the tab's server (the monitor, the Files, Tunnels, Processes and

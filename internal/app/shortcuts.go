@@ -158,7 +158,7 @@ var shortcutActions = []shortcutAction{
 		// E as VS Code's Explorer, which shows its side bar's tree; no
 		// terminal binds it. With Shift on macOS too, as the command bar's
 		// key: Cmd+E is "Use Selection for Find" in Mac apps.
-		id: scLeftPanel, title: locales.ScSwitchLeftPanel,
+		id: scLeftPanel, title: locales.ScFocusConnSearch,
 		field: func(s *config.Shortcuts) *string { return &s.SwitchLeftPanel },
 		mac:   keyCombo{ui.Super | ui.Shift, ui.KeyE}, other: keyCombo{ui.Ctrl | ui.Shift, ui.KeyE},
 	},
@@ -531,7 +531,7 @@ func (a *App) shortcuts(c *ui.Context) {
 	case a.commandBarOn() && pressed(scFocusBar):
 		a.toggleBarFocus()
 	case pressed(scLeftPanel):
-		a.switchLeftPanel()
+		a.focusConnSearch()
 	case pressed(scBottomPanel) && !a.fullScreen.on && !a.current().isPanelTab():
 		// Only where the panel under the terminal shows.
 		a.toggleBottomPanel()

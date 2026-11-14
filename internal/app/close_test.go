@@ -56,7 +56,7 @@ func coloredSession(t *testing.T, a *App, name string, color int) *Session {
 	return s
 }
 
-// rowCenter is the middle of the session row of name.
+// rowCenter is the middle of the text name, as a row or a tab shows it.
 func rowCenter(t *testing.T, tt *ui.Tester, name string) (x, y float32) {
 	t.Helper()
 	r, ok := tt.Find(name)
@@ -66,28 +66,39 @@ func rowCenter(t *testing.T, tt *ui.Tester, name string) (x, y float32) {
 	return r.X + r.W/2, r.Y + r.H/2
 }
 
-// closeWith closes the session at row with the shortcut, the row's close
+// tabCenter is the middle of the session tab of name: the tab, not the
+// connections tree's row of a host of the same name.
+func tabCenter(t *testing.T, tt *ui.Tester, name string) (x, y float32) {
+	t.Helper()
+	r, ok := tt.AccessByRole(ui.RoleTab, name)
+	if !ok {
+		t.Fatalf("no tab %q; texts %q", name, tt.Texts())
+	}
+	return r.Bounds.X + r.Bounds.W/2, r.Bounds.Y + r.Bounds.H/2
+}
+
+// closeWith closes the session at tab with the shortcut, the tab's close
 // button or its context menu.
-var closeWith = map[string]func(t *testing.T, a *App, tt *ui.Tester, row int){
-	"shortcut": func(t *testing.T, a *App, tt *ui.Tester, row int) {
-		if row != a.active {
+var closeWith = map[string]func(t *testing.T, a *App, tt *ui.Tester, tab int){
+	"shortcut": func(t *testing.T, a *App, tt *ui.Tester, tab int) {
+		if tab != a.active {
 			t.Fatal("the shortcut closes the selected session")
 		}
 		tt.Key(ui.Ctrl|ui.Shift, ui.KeyW)
 	},
-	"button": func(t *testing.T, a *App, tt *ui.Tester, row int) {
-		// The close button shows on the selected row, and on the row
+	"button": func(t *testing.T, a *App, tt *ui.Tester, tab int) {
+		// The close button shows on the selected tab, and on the tab
 		// under the pointer.
-		btn, ok := tt.Find(locales.CloseSession())
+		tt.Move(tabCenter(t, tt, a.sessions[tab].label()))
+		tt.Frame()
+		btn, ok := tt.Find(locales.CloseTab(a.sessions[tab].label()))
 		if !ok {
 			t.Fatalf("no close button; texts %q", tt.Texts())
 		}
-		_, y := rowCenter(t, tt, a.sessions[row].label())
-		tt.Move(btn.X+btn.W/2, y)
-		tt.ClickAt(btn.X+btn.W/2, y)
+		tt.ClickAt(btn.X+btn.W/2, btn.Y+btn.H/2)
 	},
-	"menu": func(t *testing.T, a *App, tt *ui.Tester, row int) {
-		tt.RightClickAt(rowCenter(t, tt, a.sessions[row].label()))
+	"menu": func(t *testing.T, a *App, tt *ui.Tester, tab int) {
+		tt.RightClickAt(tabCenter(t, tt, a.sessions[tab].label()))
 		if err := tt.ChooseMenuItem(locales.Close()); err != nil {
 			t.Fatalf("%v; menu %q", err, tt.Menu())
 		}
@@ -106,8 +117,8 @@ func TestCloseSessionKeepsOneSelected(t *testing.T) {
 		{"selected middle", 1, 1, "charlie"},
 		{"selected first", 0, 0, "bravo"},
 		{"selected last", 2, 2, "bravo"},
-		{"other above", 1, 0, "bravo"},
-		{"other below", 1, 2, "bravo"},
+		{"other left", 1, 0, "bravo"},
+		{"other right", 1, 2, "bravo"},
 		{"other first, last selected", 2, 0, "charlie"},
 	}
 	for _, how := range []string{"shortcut", "button", "menu"} {

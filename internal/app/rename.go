@@ -11,12 +11,12 @@ import (
 )
 
 // A session tab can have a name of its own for this run (Session.name),
-// which its row and everything that names the tab show instead of the
+// which its tab and everything that names the tab show instead of the
 // host's title: the user renames it in place, as a file in Finder or
-// Explorer, from the row's context menu or with F2 in the session list.
+// Explorer, from the tab's context menu or with F2 in the tab strip.
 // The name is never saved; closing the tab forgets it.
 
-// renameState is the session row being renamed: its session, nil when
+// renameState is the session tab being renamed: its session, nil when
 // none, and the text of its field.
 type renameState struct {
 	s    *Session
@@ -27,11 +27,11 @@ type renameState struct {
 }
 
 // canRename reports whether s's tab can be renamed: a new tab has no host
-// to name it after yet, and a panel row (paneltab.go) is named after its
+// to name it after yet, and a panel tab (paneltab.go) is named after its
 // session and its tab.
 func canRename(s *Session) bool { return !s.isNewTab() && !s.isPanelTab() }
 
-// startRename shows the field in place of the name of s's row.
+// startRename shows the field in place of the name of s's tab.
 func (a *App) startRename(s *Session) {
 	if !canRename(s) || a.rename.s == s {
 		return
@@ -48,7 +48,7 @@ func (a *App) endRename(keep bool) {
 	a.rename = renameState{}
 }
 
-// renaming reports whether s's row shows the field. A session closed while
+// renaming reports whether s's tab shows the field. A session closed while
 // it did shows none again.
 func (a *App) renaming(s *Session) bool {
 	if a.rename.s != nil && !slices.Contains(a.sessions, a.rename.s) {
@@ -73,7 +73,7 @@ func (s *Session) setName(name string) {
 	s.name = name
 }
 
-// renameMenu is the items of a session row's context menu that rename it.
+// renameMenu is the items of a session tab's context menu that rename it.
 func (a *App) renameMenu(m *ui.Menu, s *Session) {
 	if !canRename(s) {
 		return
@@ -87,18 +87,18 @@ func (a *App) renameMenu(m *ui.Menu, s *Session) {
 	}
 }
 
-// renameKey renames the selected session with F2 while the session list
+// renameKey renames the selected session with F2 while the tab strip
 // has the keyboard focus. The terminal keeps F2 for its programs.
-func (a *App) renameKey(c *ui.Context) {
-	if a.sessList.Shortcut(c, 0, ui.KeyF2) && a.rename.s == nil {
+func (a *App) renameKey(strip ui.Element) {
+	if strip.Shortcut(0, ui.KeyF2) && a.rename.s == nil {
 		if s := a.current(); s != nil {
 			a.startRename(s)
 		}
 	}
 }
 
-// renamedTooltip is the tooltip of the row of a session with a name of its
-// own: the host it is a session of, or that it is a local terminal.
+// renamedTooltip is the tooltip of the tab of a session with a name of
+// its own: the host it is a session of, or that it is a local terminal.
 func renamedTooltip(s *Session) string {
 	if s.isLocal() {
 		return locales.LocalTerminal()
@@ -106,12 +106,12 @@ func renamedTooltip(s *Session) string {
 	return s.Host.Title() + "\n" + s.Host.Target()
 }
 
-// renameField is the field in place of the name of the row being renamed:
-// Enter keeps what was typed, and Escape, a click elsewhere or the focus
-// moving away goes back to the name it had. It takes the keys the list
-// would take (Up, Down, Page Up, Page Down) and the letters it chooses
-// rows by; a press in it selects text rather than dragging the row.
-func (a *App) renameField(c *ui.Context, active bool) {
+// renameField is the field in place of the name of the tab being
+// renamed: Enter keeps what was typed, and Escape, a click elsewhere or
+// the focus moving away goes back to the name it had. It takes the keys
+// the tabs would take (Up, Down, Page Up, Page Down); a press in it
+// selects text rather than dragging the tab.
+func (a *App) renameField(c *ui.Context, tab ui.Element, active bool) {
 	r := &a.rename
 	pad := float32(2)
 	in := ui.TextInputBase(c, &r.text).FillWidth().MinWidth(0).
@@ -130,10 +130,10 @@ func (a *App) renameField(c *ui.Context, active bool) {
 		in.Focus().SetTextSelection(0, len([]rune(r.text)))
 	case in.Submitted():
 		a.endRename(true)
-		a.sessList.Focus(c) // the keys go to the list again, as in Finder
+		tab.Focus() // the keys go to the tab again, as in Finder
 	case in.Shortcut(0, ui.KeyEscape):
 		a.endRename(false)
-		a.sessList.Focus(c)
+		tab.Focus()
 	case in.PressedOutside():
 		a.endRename(false)
 	case in.FocusLeft() && !in.FocusWithin():

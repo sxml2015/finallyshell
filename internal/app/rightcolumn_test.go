@@ -240,7 +240,7 @@ func TestPanelHiddenOnRight(t *testing.T) {
 	a.setBottomPanelHidden(false)
 	a.openPanelTab(web, tabNetwork)
 	tt.Frame()
-	if r, ok := tt.Find(locales.BackToTerminal()); !ok || r.Y > 40 {
+	if r, ok := tt.Find(locales.BackToTerminal()); !ok || r.Y > 80 {
 		t.Errorf("the panel row's tab row at %+v, %v", r, ok)
 	}
 	if r, ok := tt.Find(locales.TabFiles()); !ok || r.X > a.sideWidth+60 {

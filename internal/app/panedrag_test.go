@@ -135,10 +135,15 @@ func paneSpot(t *testing.T, a *App, tt *ui.Tester, s *Session, q *pane, fx, fy f
 	if !ok {
 		t.Fatal("no command bar")
 	}
+	tab, ok := tt.AccessByRole(ui.RoleTab, s.label())
+	if !ok {
+		t.Fatal("no tab for the session")
+	}
 	x0, w := a.sideWidth+1, float32(1280)-a.sideWidth-1
-	h := bar.Bounds.Y - 6
+	y0 := tab.Bounds.Y + tab.Bounds.H // the terminal starts under the tab strip
+	h := bar.Bounds.Y - 6 - y0
 	r := s.panes.rects()[q]
-	return x0 + (r.x+fx*r.w)*w, (r.y + fy*r.h) * h
+	return x0 + (r.x+fx*r.w)*w, y0 + (r.y+fy*r.h)*h
 }
 
 // gripOf shows q's grip, hovering the top of q, and returns where it is.
@@ -322,7 +327,7 @@ func TestSwapPaneKeys(t *testing.T) {
 	if got := shape(s.panes.root, names); got != "r(2,1)" || s.pane() != ps[1] {
 		t.Fatalf("after the key: %s, focus %s", got, names[s.pane()])
 	}
-	tt.RightClickAt(rowCenter(t, tt, "web-1"))
+	tt.RightClickAt(tabCenter(t, tt, "web-1"))
 	if err := tt.ChooseMenuItem(locales.MovePane(), locales.MovePaneRight()); err != nil {
 		t.Fatal(err)
 	}

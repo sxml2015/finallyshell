@@ -30,12 +30,13 @@ func agentServer(t *testing.T) (*App, *fakePlatform, *Session, *ui.Tester, *fake
 	return a, p, s, tt, fd
 }
 
-// agentShown is the agent the row of s shows, as assistive technology
-// sees its logo: "" for none.
+// agentShown is the agent the tab of s shows, as its logo's label:
+// "" for none. A tab's children are not in the accessibility tree, so
+// the label is read, not the accessible node.
 func agentShown(tt *ui.Tester, s *Session) string {
 	tt.Frame()
 	for i := range monitor.Agents {
-		if info, ok := tt.Access(monitor.Agents[i].Name); ok && info.Bounds.W > 0 {
+		if r, ok := tt.Find(monitor.Agents[i].Name); ok && r.W > 0 {
 			return monitor.Agents[i].Name
 		}
 	}
@@ -54,15 +55,15 @@ func TestAgentIcon(t *testing.T) {
 	fd.run(claudeArgs...)
 	tt.Key(0, ui.KeyEnter)
 	p.until(t, "Claude Code", func() bool { return agentShown(tt, s) == "Claude Code" })
-	info, _ := tt.Access("Claude Code")
-	name, ok := tt.Find(s.label())
-	if !ok || info.Bounds.X < name.X+30 || info.Bounds.X+info.Bounds.W > name.X+name.W-20 || info.Bounds.Y > name.Y+name.H || info.Bounds.Y+info.Bounds.H < name.Y {
-		t.Errorf("logo at %+v, name at %+v", info.Bounds, name)
+	logo, ok := tt.Find("Claude Code")
+	tab, _ := tt.AccessByRole(ui.RoleTab, s.label())
+	if !ok || logo.X < tab.Bounds.X+30 || logo.X+logo.W > tab.Bounds.X+tab.Bounds.W-20 || logo.Y < tab.Bounds.Y || logo.Y+logo.H > tab.Bounds.Y+tab.Bounds.H {
+		t.Errorf("logo at %+v, tab at %+v", logo, tab.Bounds)
 	}
-	if info.Bounds.H < 13 || info.Bounds.H > 15 {
-		t.Errorf("logo %v high", info.Bounds.H)
+	if logo.H < 13 || logo.H > 15 {
+		t.Errorf("logo %v high", logo.H)
 	}
-	tt.Move(info.Bounds.X+info.Bounds.W/2, info.Bounds.Y+info.Bounds.H/2)
+	tt.Move(logo.X+logo.W/2, logo.Y+logo.H/2)
 	tt.Advance(2 * time.Second)
 	tt.Frame()
 	if !tt.HasText("Claude Code") {
@@ -250,10 +251,10 @@ func TestAgentIconRows(t *testing.T) {
 	// The panel row first, so that a logo it showed would be the first.
 	a.sessions[0], a.sessions[1] = a.sessions[1], a.sessions[0]
 	tt.Frame()
-	info, ok := tt.Access("Claude Code")
-	name, _ := tt.Find("web-1")
-	if !ok || info.Bounds.Y > name.Y+name.H || info.Bounds.Y+info.Bounds.H < name.Y {
-		t.Errorf("the first logo at %+v, the session's name at %+v", info.Bounds, name)
+	logo, ok := tt.Find("Claude Code")
+	tab, _ := tt.AccessByRole(ui.RoleTab, "web-1")
+	if !ok || logo.Y > tab.Bounds.Y+tab.Bounds.H || logo.Y+logo.H < tab.Bounds.Y {
+		t.Errorf("the first logo at %+v, the session's tab at %+v", logo, tab.Bounds)
 	}
 	a.sessions[0], a.sessions[1] = a.sessions[1], a.sessions[0]
 	s.status = statusClosed

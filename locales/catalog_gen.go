@@ -522,16 +522,6 @@ func (msgs Messages) DiskFreeSize() string {
 	return Catalog.Format(msgs.locale, "diskFreeSize", nil)
 }
 
-// SessionsTitle says "Sessions ({count})"
-// in the language the app shows.
-func SessionsTitle(count int) string { return In(i18n.Locale()).SessionsTitle(count) }
-
-// SessionsTitle says "Sessions ({count})"
-// in the language of msgs.
-func (msgs Messages) SessionsTitle(count int) string {
-	return Catalog.Format(msgs.locale, "sessionsTitle", map[string]any{"count": count})
-}
-
 // NewConnection says "New connection"
 // in the language the app shows.
 func NewConnection() string { return In(i18n.Locale()).NewConnection() }
@@ -550,16 +540,6 @@ func NoSessions() string { return In(i18n.Locale()).NoSessions() }
 // in the language of msgs.
 func (msgs Messages) NoSessions() string {
 	return Catalog.Format(msgs.locale, "noSessions", nil)
-}
-
-// LeftPanelPages says "Sessions or connections"
-// in the language the app shows.
-func LeftPanelPages() string { return In(i18n.Locale()).LeftPanelPages() }
-
-// LeftPanelPages says "Sessions or connections"
-// in the language of msgs.
-func (msgs Messages) LeftPanelPages() string {
-	return Catalog.Format(msgs.locale, "leftPanelPages", nil)
 }
 
 // ConnectionsPage says "Connections"
@@ -602,14 +582,14 @@ func (msgs Messages) DeleteHostBody() string {
 	return Catalog.Format(msgs.locale, "deleteHostBody", nil)
 }
 
-// ScSwitchLeftPanel says "Switch sessions / connections"
+// ScFocusConnSearch says "Focus the connections search"
 // in the language the app shows.
-func ScSwitchLeftPanel() string { return In(i18n.Locale()).ScSwitchLeftPanel() }
+func ScFocusConnSearch() string { return In(i18n.Locale()).ScFocusConnSearch() }
 
-// ScSwitchLeftPanel says "Switch sessions / connections"
+// ScFocusConnSearch says "Focus the connections search"
 // in the language of msgs.
-func (msgs Messages) ScSwitchLeftPanel() string {
-	return Catalog.Format(msgs.locale, "scSwitchLeftPanel", nil)
+func (msgs Messages) ScFocusConnSearch() string {
+	return Catalog.Format(msgs.locale, "scFocusConnSearch", nil)
 }
 
 // Reconnect says "Reconnect"
@@ -662,14 +642,14 @@ func (msgs Messages) Close() string {
 	return Catalog.Format(msgs.locale, "close", nil)
 }
 
-// CloseSession says "Close session"
+// CloseTab says "Close {name}"
 // in the language the app shows.
-func CloseSession() string { return In(i18n.Locale()).CloseSession() }
+func CloseTab(name string) string { return In(i18n.Locale()).CloseTab(name) }
 
-// CloseSession says "Close session"
+// CloseTab says "Close {name}"
 // in the language of msgs.
-func (msgs Messages) CloseSession() string {
-	return Catalog.Format(msgs.locale, "closeSession", nil)
+func (msgs Messages) CloseTab(name string) string {
+	return Catalog.Format(msgs.locale, "closeTab", map[string]any{"name": name})
 }
 
 // StatusConnecting says "Connecting…"

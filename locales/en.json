@@ -87,28 +87,26 @@
   "netIfaceNotFound": "not found",
   "diskPath": "Path",
   "diskFreeSize": "Free/Size",
-  "sessionsTitle": "Sessions ({count})",
-  "@sessionsTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "newConnection": "New connection",
   "noSessions": "No open sessions",
-  "leftPanelPages": "Sessions or connections",
   "connectionsPage": "Connections",
   "searchConnections": "Search connections",
   "connTreeEmpty": "No connections yet. Click + to add one.",
   "deleteHostBody": "It moves to the deleted connections, which “Show deleted” in the connection manager lists to restore.",
-  "scSwitchLeftPanel": "Switch sessions / connections",
+  "scFocusConnSearch": "Focus the connections search",
   "reconnect": "Reconnect",
   "duplicateSession": "Duplicate session",
   "resetName": "Reset name",
   "disconnect": "Disconnect",
   "close": "Close",
-  "closeSession": "Close session",
+  "closeTab": "Close {name}",
+  "@closeTab": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "statusConnecting": "Connecting…",
   "statusFailed": "Connection failed",
   "statusDisconnected": "Disconnected",

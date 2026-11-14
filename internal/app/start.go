@@ -18,10 +18,10 @@ import (
 // them the other hosts, the last added first, so that a host just added
 // is there before it has ever connected.
 //
-// A new tab is a Session without a Host. It is a row of the session list
+// A new tab is a Session without a Host. It is a tab of the tab strip
 // as any session is, so it is selected, cycled with Ctrl+Tab, dragged and
 // closed the same way; connecting from its page gives it the host, and
-// the same row becomes the session. With no row selected, as once the
+// the same tab becomes the session. With no tab selected, as once the
 // last one is closed, the terminal area shows the page too, and
 // connecting there opens a tab.
 
@@ -40,7 +40,7 @@ const recentLimit = 30
 // terminal has none either, and is no new tab.
 func (s *Session) isNewTab() bool { return s.Host == nil && !s.local }
 
-// NewTab adds a new tab at the end of the session list and selects it,
+// NewTab adds a new tab at the end of the tab strip and selects it,
 // as the "+" button does; the app starts with one.
 func (a *App) NewTab() {
 	// Closed rather than connecting, the zero status: quitting ends nothing.

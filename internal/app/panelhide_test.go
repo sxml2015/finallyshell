@@ -184,7 +184,7 @@ func TestBottomPanelOpenedByTabs(t *testing.T) {
 	if _, ok := tt.Find(locales.ShowPanel()); ok {
 		t.Error("Show panel on a panel row")
 	}
-	if r, ok := tt.Find(locales.BackToTerminal()); !ok || r.Y > 40 {
+	if r, ok := tt.Find(locales.BackToTerminal()); !ok || r.Y > 80 {
 		t.Errorf("the panel row's tab row at %+v, %v", r, ok)
 	}
 	k := a.shortcut(scBottomPanel)

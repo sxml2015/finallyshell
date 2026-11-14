@@ -213,7 +213,7 @@ func TestSplitPanes(t *testing.T) {
 		t.Errorf("the bar's placeholder %q", barPlaceholder(tt))
 	}
 	// The row's menu splits too: the focused pane, down.
-	tt.RightClickAt(rowCenter(t, tt, "web-1"))
+	tt.RightClickAt(tabCenter(t, tt, "web-1"))
 	if menu := tt.Menu(); !slices.Contains(menu, locales.SplitDown()) || !slices.Contains(menu, locales.ClosePane()) {
 		t.Fatalf("row menu %q", menu)
 	}
@@ -227,10 +227,10 @@ func TestSplitPanes(t *testing.T) {
 		t.Fatalf("tree %s, logins %d, shells %d", got, srv.Logins(), srv.Shells())
 	}
 	if !tt.HasText("3") {
-		t.Error("the row shows no pane count")
+		t.Error("the tab shows no pane count")
 	}
-	if _, ok := tt.Access(locales.PaneCount(3)); !ok {
-		t.Error("the row's badge is not named")
+	if _, ok := tt.Find(locales.PaneCount(3)); !ok {
+		t.Error("the tab's badge is not named")
 	}
 
 	// Focus by the keys, then by a click.
@@ -547,7 +547,7 @@ func TestPanesScreenshots(t *testing.T) {
 		tt.ClickAt(paneAt(t, a, tt, s, ps[0]))
 		tt.Frame()
 		saveShot(t, tt, "panes-"+lang+".png")
-		tt.RightClickAt(rowCenter(t, tt, "web-1"))
+		tt.RightClickAt(tabCenter(t, tt, "web-1"))
 		tt.Frame()
 		if menu := tt.Menu(); !slices.Contains(menu, locales.SplitRight()) {
 			t.Fatalf("%s: row menu %q", lang, menu)

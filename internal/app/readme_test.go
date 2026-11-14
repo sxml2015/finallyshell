@@ -136,8 +136,8 @@ func TestReadmeScreenshots(t *testing.T) {
 				saveShot(t, tt, "readme-quick-commands-"+lang+".png")
 			})
 
-			// The left panel on its Connections page, the open sessions'
-			// hosts in folders among others.
+			// The left panel's connections, the open sessions' hosts
+			// in folders among others.
 			t.Run("connections", func(t *testing.T) {
 				a, _, tt, _ := readmeApp(t, lang)
 				s := a.hosts
@@ -167,7 +167,6 @@ func TestReadmeScreenshots(t *testing.T) {
 				for _, f := range []string{"prod", "db", "staging"} {
 					a.connTree.tree.Open.Add(managerItem{folder: f})
 				}
-				a.setLeftPage(leftConnections)
 				tt.Frame()
 				if !tt.HasText("Databases") || !tt.HasText("db-2") {
 					t.Errorf("no tree; texts %q", tt.Texts())

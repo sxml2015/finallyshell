@@ -234,7 +234,7 @@ func TestMonitorAndPanelOnRight(t *testing.T) {
 	// A panel row's panel has the monitor beside it, on its session.
 	a.openPanelTab(web, tabProcesses)
 	tt.Frame()
-	if r := find(t, tt, locales.BackToTerminal()); r.X > left || r.Y > 40 {
+	if r := find(t, tt, locales.BackToTerminal()); r.X > left || r.Y > 80 {
 		t.Errorf("the panel row's tab row at %+v", r)
 	}
 	if r := find(t, tt, webIP); r.X < left {
