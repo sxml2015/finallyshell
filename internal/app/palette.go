@@ -77,6 +77,10 @@ type palette struct {
 	// activeLine is the line with the caret in the file editor, and
 	// lineNumber its line numbers.
 	activeLine, lineNumber ui.Color
+	// activeHost fills the row of the connection the session shown
+	// belongs to, in the connections panel: green, so that it reads
+	// apart from the row chosen, which the list shows in the accent.
+	activeHost ui.Color
 }
 
 var lightColors = palette{
@@ -101,6 +105,7 @@ var lightColors = palette{
 	warningText:   ui.Hex("#a16207"),
 	activeLine:    ui.Hex("#f6f7f9"),
 	lineNumber:    ui.Hex("#9ca3af"),
+	activeHost:    ui.Hex("#dcfce7"),
 }
 
 // darkColors are lightColors for the dark theme's background (#18181b):
@@ -128,6 +133,7 @@ var darkColors = palette{
 	warningText:   ui.Hex("#facc15"),
 	activeLine:    ui.RGBA(255, 255, 255, 0.045),
 	lineNumber:    ui.Hex("#71717a"),
+	activeHost:    ui.Hex("#14532d"),
 }
 
 // Colors that read on both backgrounds.

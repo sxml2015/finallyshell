@@ -215,6 +215,11 @@ func (a *App) connTreeRow(c *ui.Context, m *managerState, it managerItem, r ui.O
 		color, muted = theme.AccentText, theme.AccentText.Alpha(0.75)
 	}
 	row := ui.Row(c).Grow(1).MinWidth(0).AlignSelf(ui.Stretch).Gap(5).AlignItems(ui.Center).Padding(4, 8, 4, 4).Radius(4)
+	if h != nil && a.isActiveHost(h) && !m.isChosen(it) {
+		// The connection of the session shown, green: the row chosen
+		// keeps the list's accent, which already marks it.
+		row.Background(colors.activeHost)
+	}
 	if it == m.over {
 		row.Background(theme.Accent.Alpha(0.14))
 	}
@@ -252,7 +257,12 @@ func (a *App) connTreeRow(c *ui.Context, m *managerState, it managerItem, r ui.O
 			return
 		}
 		ui.Icon(c, icons.Get("server")).FontSize(14).TextColor(color.Alpha(0.75))
-		ui.Text(c, h.Title()).SingleLine().MinWidth(0).TextColor(color)
+		name := ui.Text(c, h.Title()).SingleLine().MinWidth(0).TextColor(color)
+		if a.isActiveHost(h) {
+			// Bold as well as green, so that it reads on the accent
+			// too, when the row is the one chosen.
+			name.Bold()
+		}
 		if dot, ok := a.sessionDot(h); ok {
 			widgets.StatusDot(c, dot)
 		}
@@ -267,6 +277,15 @@ func hostTooltip(h *config.Host) string {
 		s += "\n" + notes
 	}
 	return s
+}
+
+// isActiveHost is whether h is the host of the session shown: the one
+// chosen in the tab strip, a panel row's session included. A local
+// terminal and a new tab have none, and several sessions of the same
+// host make it the active one's.
+func (a *App) isActiveHost(h *config.Host) bool {
+	s := a.connSession()
+	return s != nil && s.Host != nil && h != nil && s.Host.ID == h.ID
 }
 
 // sessionDot is the color of the dot of h's row: the color of its

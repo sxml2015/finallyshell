@@ -513,3 +513,49 @@ func TestConnectionPageShortcut(t *testing.T) {
 		t.Error("rebound: the search has no keyboard")
 	}
 }
+
+// The row of the connection the session shown belongs to is green in
+// the connections panel, apart from the row chosen; switching tabs
+// moves the green with the session.
+func TestConnectionPageMarksActiveHost(t *testing.T) {
+	a, p := testApp(t)
+	demoSession(a, "web-1", "45.56.78.90")
+	demoSession(a, "db-1", "45.56.78.91")
+	demoSession(a, "cache-1", "45.56.78.92")
+	a.connTree.tree.Open.Clear()
+	a.restoreConnTree()
+	a.active = 1
+	tt := ui.NewTester(a.View, 1280, 820)
+	p.tt = tt
+	tt.Frame()
+
+	// rowPixel samples the row's background at its right end, past its
+	// name and dot.
+	rowPixel := func(name string) (r, g, b uint8) {
+		t.Helper()
+		row, ok := tt.AccessByRole(ui.RoleTreeItem, name)
+		if !ok {
+			t.Fatalf("no row %q; texts %q", name, tt.Texts())
+		}
+		px := tt.Image().RGBAAt(int(row.Bounds.X+row.Bounds.W-6), int(row.Bounds.Y+row.Bounds.H/2))
+		return px.R, px.G, px.B
+	}
+	if r, g, b := rowPixel("db-1"); !isColor(r, g, b, colors.activeHost) {
+		t.Errorf("db-1: rgb(%d,%d,%d), not the active green %v", r, g, b, colors.activeHost)
+	}
+	if r, g, b := rowPixel("cache-1"); isColor(r, g, b, colors.activeHost) {
+		t.Errorf("cache-1 is green too")
+	}
+	if r, g, b := rowPixel("web-1"); isColor(r, g, b, colors.activeHost) {
+		t.Errorf("web-1 is green too")
+	}
+
+	a.active = 2
+	tt.Frame()
+	if r, g, b := rowPixel("cache-1"); !isColor(r, g, b, colors.activeHost) {
+		t.Errorf("after switching: cache-1 rgb(%d,%d,%d), not the active green", r, g, b)
+	}
+	if r, g, b := rowPixel("db-1"); isColor(r, g, b, colors.activeHost) {
+		t.Errorf("after switching db-1 is still green")
+	}
+}

@@ -11,10 +11,10 @@ import (
 )
 
 // The session tabs are the row above the terminal, as FinalShell's: one
-// tab per session, a panel row's among them, with a local terminal and a
-// new tab at its right end. A tab shows its session's status mark and
-// name, and a close button on the tab chosen and the one under the
-// pointer; a click chooses it, a double click on one not connected
+// tab per session, a panel row's among them, a new tab right after the
+// last one, and a local terminal at its right end. A tab shows its
+// session's status mark and name, and a close button on the tab chosen
+// and the one under the pointer; a click chooses it, a double click on
 // connects it again, and its context menu is the session's. Tabs drag to
 // another place in the row, and scroll sideways where they do not fit.
 // The strip scrolls to a tab chosen from elsewhere, as with the keys, so
@@ -40,7 +40,8 @@ func (a *App) sessionCount() int {
 }
 
 // sessionTabStrip is the row of tabs above the terminal, with the local
-// terminal and the new tab at its right end.
+// terminal at its right end, and the new tab right after the last tab,
+// traveling with the tabs as they scroll.
 func (a *App) sessionTabStrip(c *ui.Context) {
 	strip := ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(2).Padding(0, 4, 0, 0).
 		Background(colors.sidebar).BorderWidth(0, 0, 1, 0).BorderColor(colors.line)
@@ -58,33 +59,36 @@ func (a *App) sessionTabStrip(c *ui.Context) {
 		scroll.Children(func() {
 			if len(a.sessions) == 0 {
 				widgets.Muted(c, locales.NoSessions()).Padding(8, 10)
-				return
+			} else {
+				tabs := ui.TabsBase(c, &a.active, len(a.sessions))
+				tabs.List.Gap(2).Padding(4, 4, 0, 4).Children(func() {
+					for i, s := range a.sessions {
+						tab := tabs.Tab(i)
+						if i == a.active {
+							activeBounds = tab.Bounds()
+						}
+						if a.sessionTab(c, tab, s, i, i == a.active, &move, &moveTo) {
+							closing = s
+						}
+					}
+				})
+				// The tab chosen from elsewhere, as with the keys, is
+				// scrolled into view once it has a place to scroll to.
+				if cur := a.current(); cur != nil && cur.ID != a.scrolledTab {
+					if a.scrollTabIntoView(scroll, activeBounds) {
+						a.scrolledTab = cur.ID
+					}
+				}
 			}
-			tabs := ui.TabsBase(c, &a.active, len(a.sessions))
-			tabs.List.Gap(2).Padding(4, 4, 0, 4).Children(func() {
-				for i, s := range a.sessions {
-					tab := tabs.Tab(i)
-					if i == a.active {
-						activeBounds = tab.Bounds()
-					}
-					if a.sessionTab(c, tab, s, i, i == a.active, &move, &moveTo) {
-						closing = s
-					}
-				}
-			})
-			// The tab chosen from elsewhere, as with the keys, is
-			// scrolled into view once it has a place to scroll to.
-			if cur := a.current(); cur != nil && cur.ID != a.scrolledTab {
-				if a.scrollTabIntoView(scroll, activeBounds) {
-					a.scrolledTab = cur.ID
-				}
+			// Right after the last tab, inside the scroll, so that a
+			// new tab is a short move from the tabs, however many
+			// there are.
+			if headerButton(c, "plus", locales.NewTab()).AlignSelf(ui.Center).Clicked() {
+				a.NewTab()
 			}
 		})
 		if headerButton(c, "square-terminal", locales.LocalTerminal()).Clicked() {
 			a.openLocal(nil)
-		}
-		if headerButton(c, "plus", locales.NewTab()).Clicked() {
-			a.NewTab()
 		}
 	})
 	// A tab dropped past the tabs, on the strip itself, goes at the end.
@@ -126,7 +130,12 @@ func (a *App) sessionTab(c *ui.Context, tab ui.Element, s *Session, i int, activ
 		tab.Children(func() {
 			// As wide as a status dot, so that the names line up.
 			ui.Box(c).Size(8, 8).Center().Shrink(0).Children(func() {
-				ui.Icon(c, icons.Get("app-window")).FontSize(13).TextColor(theme.TextMuted)
+				ic := ui.Icon(c, icons.Get("app-window")).FontSize(13)
+				if active {
+					ic.TextColor(theme.AccentText)
+				} else {
+					ic.TextColor(theme.TextMuted)
+				}
 			})
 			rowName(c, locales.NewTab(), active).MinWidth(0).Shrink(1)
 			closed = tabCloseButton(c, tab, locales.NewTab(), active) || closed
@@ -208,23 +217,27 @@ func (a *App) panelTab(c *ui.Context, tab ui.Element, p *Session, i int, active 
 		if p.panelTab >= 0 && p.panelTab < len(panelTabIcons) {
 			icon = panelTabIcons[p.panelTab]
 		}
-		ui.Icon(c, icons.Get(icon)).FontSize(14).Shrink(0)
+		ic := ui.Icon(c, icons.Get(icon)).FontSize(14).Shrink(0)
 		name := ui.Text(c, panelTabName(p)).SingleLine().MinWidth(0).Shrink(1)
 		if active {
-			name.Bold()
+			// On the accent tab, as its name is.
+			ic.TextColor(theme.AccentText)
+			name.Bold().TextColor(theme.AccentText)
 		}
 		closed = tabCloseButton(c, tab, panelTabName(p), active) || closed
 	})
 	return closed
 }
 
-// tabStyle is the look of a tab: the chosen one raised, as a folder's
-// tab, over the strip, and the one under the pointer shaded.
+// tabStyle is the look of a tab: the chosen one in the accent color, so
+// that it stands out from the rest at a glance — with several sessions
+// open, the tab of the one typed into must not be missed — and the one
+// under the pointer shaded.
 func tabStyle(tab ui.Element, active bool) {
 	tab.Gap(6).AlignItems(ui.Center).Padding(6, 4, 6, 10).Radius(6, 6, 0, 0)
 	switch {
 	case active:
-		tab.Background(theme.Background)
+		tab.Background(theme.Accent)
 	case tab.Hovered():
 		tab.Background(theme.Text.Alpha(0.06))
 	}

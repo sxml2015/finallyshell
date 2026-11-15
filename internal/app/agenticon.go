@@ -125,11 +125,12 @@ func (a *App) sessionName(c *ui.Context, s *Session, active bool) {
 	})
 }
 
-// rowName is the name of a session tab.
+// rowName is the name of a session tab: bold and the accent's text on
+// the chosen one, whose tab is the accent color.
 func rowName(c *ui.Context, name string, active bool) ui.Element {
 	t := ui.Text(c, name).SingleLine()
 	if active {
-		t.Bold()
+		t.Bold().TextColor(theme.AccentText)
 	}
 	return t
 }

@@ -433,8 +433,9 @@ func hostsOf(rows []*Session) []*config.Host {
 func TestNewTabRows(t *testing.T) {
 	a, _, tt, _ := startApp(t)
 	s := demoSession(a, "web-1", "203.0.113.10") // a session after the new tab
+	tt.Frame()                                   // the new tab button moves with the tabs
 
-	// The "+" button at the end of the tab strip adds another new tab
+	// The "+" button right after the last tab adds another new tab
 	// and selects it.
 	plus, ok := tt.AccessByRole(ui.RoleButton, locales.NewTab())
 	if !ok {
