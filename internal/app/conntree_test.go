@@ -515,8 +515,8 @@ func TestConnectionPageShortcut(t *testing.T) {
 }
 
 // The row of the connection the session shown belongs to is green in
-// the connections panel, apart from the row chosen; switching tabs
-// moves the green with the session.
+// the connections panel; choosing a row changes no color, and switching
+// tabs moves the green with the session.
 func TestConnectionPageMarksActiveHost(t *testing.T) {
 	a, p := testApp(t)
 	demoSession(a, "web-1", "45.56.78.90")
@@ -558,4 +558,48 @@ func TestConnectionPageMarksActiveHost(t *testing.T) {
 	if r, g, b := rowPixel("db-1"); isColor(r, g, b, colors.activeHost) {
 		t.Errorf("after switching db-1 is still green")
 	}
+
+	// Choosing a row changes no color: the green alone marks the
+	// session shown, and it moves when the session does.
+	clickRow := func(name string) {
+		t.Helper()
+		row, ok := tt.AccessByRole(ui.RoleTreeItem, name)
+		if !ok {
+			t.Fatalf("no row %q; texts %q", name, tt.Texts())
+		}
+		tt.ClickAt(row.Bounds.X+row.Bounds.W/2, row.Bounds.Y+row.Bounds.H/2)
+		tt.Frame()
+		tt.Move(1000, 400) // off the rows, so no hover tint shows
+		tt.Frame()
+	}
+	// plain is the background of a row that is not active: chosen or
+	// not, it shows the sidebar, unchanged by the click.
+	plain := func(name string) {
+		t.Helper()
+		if r, g, b := rowPixel(name); !isColor(r, g, b, colors.sidebar) {
+			t.Errorf("%s: rgb(%d,%d,%d), not the plain sidebar %v", name, r, g, b, colors.sidebar)
+		}
+	}
+
+	// Choosing a row that is not active changes nothing.
+	clickRow("db-1")
+	plain("db-1")
+	plain("web-1")
+	if r, g, b := rowPixel("cache-1"); !isColor(r, g, b, colors.activeHost) {
+		t.Errorf("active cache-1 lost its green when db-1 was chosen")
+	}
+
+	// Choosing the active row keeps it green, with no accent.
+	clickRow("cache-1")
+	if r, g, b := rowPixel("cache-1"); !isColor(r, g, b, colors.activeHost) {
+		t.Errorf("chosen active cache-1: rgb(%d,%d,%d), not the active green", r, g, b)
+	}
+
+	// Switching tabs moves the green even with a row chosen.
+	a.active = 0
+	tt.Frame()
+	if r, g, b := rowPixel("web-1"); !isColor(r, g, b, colors.activeHost) {
+		t.Errorf("after switching with a choice: web-1 rgb(%d,%d,%d), not the active green", r, g, b)
+	}
+	plain("cache-1")
 }

@@ -78,8 +78,8 @@ type palette struct {
 	// lineNumber its line numbers.
 	activeLine, lineNumber ui.Color
 	// activeHost fills the row of the connection the session shown
-	// belongs to, in the connections panel: green, so that it reads
-	// apart from the row chosen, which the list shows in the accent.
+	// belongs to, in the connections panel: green, the only color
+	// the list marks a row with; the row chosen is not painted.
 	activeHost ui.Color
 }
 

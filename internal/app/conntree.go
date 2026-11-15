@@ -210,15 +210,24 @@ func (a *App) connTreeRow(c *ui.Context, m *managerState, it managerItem, r ui.O
 		}
 		into = f.ID
 	}
+	active := h != nil && a.isActiveHost(h)
+	// The text is always the theme's: the choice is not painted in
+	// this list, so no row ever sits on the accent.
 	color, muted := theme.Text, theme.TextMuted
-	if m.isChosen(it) {
-		color, muted = theme.AccentText, theme.AccentText.Alpha(0.75)
-	}
 	row := ui.Row(c).Grow(1).MinWidth(0).AlignSelf(ui.Stretch).Gap(5).AlignItems(ui.Center).Padding(4, 8, 4, 4).Radius(4)
-	if h != nil && a.isActiveHost(h) && !m.isChosen(it) {
-		// The connection of the session shown, green: the row chosen
-		// keeps the list's accent, which already marks it.
+	// The row always paints its own background, over the accent the
+	// list paints under a row chosen: the green of the connection
+	// shown, else the sidebar's, or the hover tint under the pointer.
+	// The choice itself is not shown: the green alone marks the
+	// session shown, so a click changes no color. The choice still
+	// works: the keyboard, the menu and Enter act on the row chosen.
+	switch {
+	case active:
 		row.Background(colors.activeHost)
+	case row.Hovered():
+		row.Background(theme.SurfaceHover)
+	default:
+		row.Background(colors.sidebar)
 	}
 	if it == m.over {
 		row.Background(theme.Accent.Alpha(0.14))
@@ -258,9 +267,8 @@ func (a *App) connTreeRow(c *ui.Context, m *managerState, it managerItem, r ui.O
 		}
 		ui.Icon(c, icons.Get("server")).FontSize(14).TextColor(color.Alpha(0.75))
 		name := ui.Text(c, h.Title()).SingleLine().MinWidth(0).TextColor(color)
-		if a.isActiveHost(h) {
-			// Bold as well as green, so that it reads on the accent
-			// too, when the row is the one chosen.
+		if active {
+			// Bold as well as green.
 			name.Bold()
 		}
 		if dot, ok := a.sessionDot(h); ok {
