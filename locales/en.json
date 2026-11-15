@@ -1223,6 +1223,23 @@
       }
     }
   },
+  "permissions": "Permissions…",
+  "permissionsTitle": "Permissions of “{name}”",
+  "@permissionsTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "permissionsOwner": "Owner",
+  "permissionsGroup": "Group",
+  "permissionsOther": "Other",
+  "permissionsRead": "Read",
+  "permissionsWrite": "Write",
+  "permissionsExecute": "Execute",
+  "permissionsOctal": "Octal",
+  "badMode": "Enter three or four octal digits, as 755.",
   "optionsSync": "Sync",
   "syncIntro": "Keep connections and settings the same on your computers, through storage you already have. Everything is encrypted on this computer with your sync password before it leaves; Finallyshell runs no server and sees nothing.",
   "syncService": "Sync with",

@@ -7374,6 +7374,106 @@ func (msgs Messages) FileNameTaken(name string) string {
 	return Catalog.Format(msgs.locale, "fileNameTaken", map[string]any{"name": name})
 }
 
+// Permissions says "Permissions…"
+// in the language the app shows.
+func Permissions() string { return In(i18n.Locale()).Permissions() }
+
+// Permissions says "Permissions…"
+// in the language of msgs.
+func (msgs Messages) Permissions() string {
+	return Catalog.Format(msgs.locale, "permissions", nil)
+}
+
+// PermissionsTitle says "Permissions of “{name}”"
+// in the language the app shows.
+func PermissionsTitle(name string) string { return In(i18n.Locale()).PermissionsTitle(name) }
+
+// PermissionsTitle says "Permissions of “{name}”"
+// in the language of msgs.
+func (msgs Messages) PermissionsTitle(name string) string {
+	return Catalog.Format(msgs.locale, "permissionsTitle", map[string]any{"name": name})
+}
+
+// PermissionsOwner says "Owner"
+// in the language the app shows.
+func PermissionsOwner() string { return In(i18n.Locale()).PermissionsOwner() }
+
+// PermissionsOwner says "Owner"
+// in the language of msgs.
+func (msgs Messages) PermissionsOwner() string {
+	return Catalog.Format(msgs.locale, "permissionsOwner", nil)
+}
+
+// PermissionsGroup says "Group"
+// in the language the app shows.
+func PermissionsGroup() string { return In(i18n.Locale()).PermissionsGroup() }
+
+// PermissionsGroup says "Group"
+// in the language of msgs.
+func (msgs Messages) PermissionsGroup() string {
+	return Catalog.Format(msgs.locale, "permissionsGroup", nil)
+}
+
+// PermissionsOther says "Other"
+// in the language the app shows.
+func PermissionsOther() string { return In(i18n.Locale()).PermissionsOther() }
+
+// PermissionsOther says "Other"
+// in the language of msgs.
+func (msgs Messages) PermissionsOther() string {
+	return Catalog.Format(msgs.locale, "permissionsOther", nil)
+}
+
+// PermissionsRead says "Read"
+// in the language the app shows.
+func PermissionsRead() string { return In(i18n.Locale()).PermissionsRead() }
+
+// PermissionsRead says "Read"
+// in the language of msgs.
+func (msgs Messages) PermissionsRead() string {
+	return Catalog.Format(msgs.locale, "permissionsRead", nil)
+}
+
+// PermissionsWrite says "Write"
+// in the language the app shows.
+func PermissionsWrite() string { return In(i18n.Locale()).PermissionsWrite() }
+
+// PermissionsWrite says "Write"
+// in the language of msgs.
+func (msgs Messages) PermissionsWrite() string {
+	return Catalog.Format(msgs.locale, "permissionsWrite", nil)
+}
+
+// PermissionsExecute says "Execute"
+// in the language the app shows.
+func PermissionsExecute() string { return In(i18n.Locale()).PermissionsExecute() }
+
+// PermissionsExecute says "Execute"
+// in the language of msgs.
+func (msgs Messages) PermissionsExecute() string {
+	return Catalog.Format(msgs.locale, "permissionsExecute", nil)
+}
+
+// PermissionsOctal says "Octal"
+// in the language the app shows.
+func PermissionsOctal() string { return In(i18n.Locale()).PermissionsOctal() }
+
+// PermissionsOctal says "Octal"
+// in the language of msgs.
+func (msgs Messages) PermissionsOctal() string {
+	return Catalog.Format(msgs.locale, "permissionsOctal", nil)
+}
+
+// BadMode says "Enter three or four octal digits, as 755."
+// in the language the app shows.
+func BadMode() string { return In(i18n.Locale()).BadMode() }
+
+// BadMode says "Enter three or four octal digits, as 755."
+// in the language of msgs.
+func (msgs Messages) BadMode() string {
+	return Catalog.Format(msgs.locale, "badMode", nil)
+}
+
 // OptionsSync says "Sync"
 // in the language the app shows.
 func OptionsSync() string { return In(i18n.Locale()).OptionsSync() }

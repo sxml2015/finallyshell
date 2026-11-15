@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io/fs"
 	"path"
 	"slices"
 	"strings"
@@ -23,15 +25,17 @@ const (
 	opMkdir
 	opCreate
 	opDelete
+	opChmod
 )
 
 // fileDialog asks for the name of a rename, a new folder or a new file,
-// or whether to delete, in the file panel of sess, and shows how it went.
+// the permissions of a file or folder, or whether to delete, in the
+// file panel of sess, and shows how it went.
 type fileDialog struct {
 	sess  *Session
 	op    fileOp
 	dir   string   // the folder it happens in
-	old   string   // the name renamed
+	old   string   // the name renamed, or whose permissions change
 	isDir bool     // what is renamed is a folder
 	names []string // the names in dir a delete removes
 	dirs  bool     // a delete removes folders, with what they hold
@@ -39,6 +43,12 @@ type fileDialog struct {
 	// selectStem selects the name without its extension as the dialog
 	// opens, as Finder and Explorer do for a rename.
 	selectStem bool
+	// mode are the permissions opChmod sets, the set-ID and sticky bits
+	// included; octal is its field's text, and octalBad that the text
+	// does not parse.
+	mode     fs.FileMode
+	octal    string
+	octalBad bool
 
 	busy   bool
 	err    error
@@ -53,6 +63,8 @@ func (d *fileDialog) title() string {
 		return locales.NewFolder()
 	case opCreate:
 		return locales.NewFile()
+	case opChmod:
+		return locales.PermissionsTitle(d.old)
 	}
 	if len(d.names) == 1 {
 		return locales.DeleteFileTitle(d.names[0])
@@ -100,6 +112,18 @@ func (a *App) askDeleteChosen(s *Session) {
 	a.askDelete(s, f.cwd, names, dirs)
 }
 
+// askPermissions asks for the permissions of the file or folder at p,
+// whose mode is its current one.
+func (a *App) askPermissions(s *Session, p string, mode fs.FileMode) {
+	if s.sftp == nil || p == "/" || p == "" {
+		return
+	}
+	// The type bits are not the file's to change, and a link's mode is
+	// its target's.
+	m := mode & (fs.ModePerm | fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky)
+	a.fileDlg = &fileDialog{sess: s, op: opChmod, dir: path.Dir(p), old: path.Base(p), mode: m, octal: modeOctal(m)}
+}
+
 func (a *App) closeFileDialog(d *fileDialog) {
 	if d.cancel != nil {
 		d.cancel()
@@ -117,7 +141,7 @@ func (a *App) runFileDialog(d *fileDialog) {
 		return
 	}
 	name := strings.TrimSpace(d.name)
-	if d.op != opDelete && !remotefs.ValidName(name) {
+	if d.op != opDelete && d.op != opChmod && !remotefs.ValidName(name) {
 		d.err = remotefs.ErrBadName
 		return
 	}
@@ -134,6 +158,8 @@ func (a *App) runFileDialog(d *fileDialog) {
 			made, err = remotefs.Mkdir(sc, d.dir, name)
 		case opCreate:
 			made, err = remotefs.CreateFile(sc, d.dir, name)
+		case opChmod:
+			err = sc.Chmod(path.Join(d.dir, d.old), d.mode)
 		case opDelete:
 			for _, n := range d.names {
 				p := path.Join(d.dir, n)
@@ -266,6 +292,9 @@ func (a *App) fileDialogView(c *ui.Context, d *fileDialog) {
 				body = locales.DeleteFoldersBody(len(d.names))
 			}
 			ui.Text(c, body)
+		} else if d.op == opChmod {
+			submit = a.permissionsForm(c, d)
+			empty = d.octalBad
 		} else {
 			before := d.name
 			in := ui.TextInput(c, &d.name).Label(locales.FolderName()).AutoFocus()
@@ -281,6 +310,8 @@ func (a *App) fileDialogView(c *ui.Context, d *fileDialog) {
 		}
 		if d.err != nil {
 			ui.Text(c, fileOpErrorText(d.err)).TextColor(theme.Danger).MaxLines(3)
+		} else if d.octalBad {
+			ui.Text(c, locales.BadMode()).TextColor(theme.Danger).MaxLines(3)
 		}
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			if d.busy {
@@ -305,6 +336,108 @@ func (a *App) fileDialogView(c *ui.Context, d *fileDialog) {
 			a.runFileDialog(d)
 		}
 	})
+}
+
+// permissionsForm is the body of the permissions dialog: the owner's,
+// the group's and the others' read, write and execute, with the octal
+// number and the letters they make, kept in step with each other. It
+// reports whether the octal field was submitted.
+func (a *App) permissionsForm(c *ui.Context, d *fileDialog) bool {
+	classes := []struct {
+		name string
+		read fs.FileMode // the class's read bit; write and execute follow
+	}{
+		{locales.PermissionsOwner(), 0o400},
+		{locales.PermissionsGroup(), 0o040},
+		{locales.PermissionsOther(), 0o004},
+	}
+	bits := []string{locales.PermissionsRead(), locales.PermissionsWrite(), locales.PermissionsExecute()}
+	submit := false
+	ui.Column(c).Gap(8).Children(func() {
+		for _, cl := range classes {
+			ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, cl.name).Width(64)
+				for i, name := range bits {
+					bit := cl.read >> i
+					on := d.mode&bit != 0
+					if ui.Checkbox(c, &on, name).Changed() {
+						if on {
+							d.mode |= bit
+						} else {
+							d.mode &^= bit
+						}
+						d.octal = modeOctal(d.mode)
+						d.octalBad = false
+					}
+				}
+			})
+		}
+		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, locales.PermissionsOctal()).Width(64)
+			in := ui.TextInput(c, &d.octal).Width(80).Label(locales.PermissionsOctal())
+			submit = in.Submitted()
+			if in.Changed() {
+				if m, ok := parseOctalMode(d.octal, d.mode); ok {
+					d.mode = m
+					d.octalBad = false
+				} else {
+					d.octalBad = true
+				}
+			}
+			ui.Text(c, d.mode.Perm().String()).Font("monospace").TextColor(theme.TextMuted)
+		})
+	})
+	return submit
+}
+
+// modeOctal is m as octal digits: four when it has a set-ID or sticky
+// bit, three otherwise.
+func modeOctal(m fs.FileMode) string {
+	special := 0
+	if m&fs.ModeSetuid != 0 {
+		special |= 4
+	}
+	if m&fs.ModeSetgid != 0 {
+		special |= 2
+	}
+	if m&fs.ModeSticky != 0 {
+		special |= 1
+	}
+	if special != 0 {
+		return fmt.Sprintf("%d%03o", special, m.Perm())
+	}
+	return fmt.Sprintf("%03o", m.Perm())
+}
+
+// parseOctalMode reads three or four octal digits as a mode: with four,
+// the first is the set-ID and sticky bits (4 setuid, 2 setgid, 1
+// sticky); with three, they are kept from keep. Anything else fails.
+func parseOctalMode(s string, keep fs.FileMode) (fs.FileMode, bool) {
+	if len(s) != 3 && len(s) != 4 {
+		return 0, false
+	}
+	var m fs.FileMode
+	for _, r := range s {
+		if r < '0' || r > '7' {
+			return 0, false
+		}
+		m = m<<3 | fs.FileMode(r-'0')
+	}
+	if len(s) == 3 {
+		return keep&(fs.ModeSetuid|fs.ModeSetgid|fs.ModeSticky) | m, true
+	}
+	out := m & fs.ModePerm
+	special := m >> 9
+	if special&4 != 0 {
+		out |= fs.ModeSetuid
+	}
+	if special&2 != 0 {
+		out |= fs.ModeSetgid
+	}
+	if special&1 != 0 {
+		out |= fs.ModeSticky
+	}
+	return out, true
 }
 
 // treeMenu is the context menu of the folder dir in the folder tree: it

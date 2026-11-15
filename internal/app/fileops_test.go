@@ -1,6 +1,7 @@
 package app
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -291,4 +292,133 @@ func TestFileOpsInTree(t *testing.T) {
 		t.Errorf("menu of /: %q", menu)
 	}
 	tt.CloseMenu()
+}
+
+// parseOctalMode reads three or four octal digits, keeping the set-ID
+// and sticky bits of keep for three, and modeOctal writes them back.
+func TestParseOctalMode(t *testing.T) {
+	for _, tc := range []struct {
+		s    string
+		keep fs.FileMode
+		want fs.FileMode
+		ok   bool
+	}{
+		{"755", 0, 0o755, true},
+		{"640", 0, 0o640, true},
+		{"000", 0, 0, true},
+		{"755", fs.ModeSetuid, fs.ModeSetuid | 0o755, true},
+		{"4755", 0, fs.ModeSetuid | 0o755, true},
+		{"2755", 0, fs.ModeSetgid | 0o755, true},
+		{"1755", 0, fs.ModeSticky | 0o755, true},
+		{"7755", 0, fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky | 0o755, true},
+		{"0755", 0, 0o755, true},
+		{"", 0, 0, false},
+		{"75", 0, 0, false},
+		{"7555", 0, fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky | 0o555, true},
+		{"888", 0, 0, false},
+		{"75a", 0, 0, false},
+		{"75555", 0, 0, false},
+	} {
+		if got, ok := parseOctalMode(tc.s, tc.keep); got != tc.want || ok != tc.ok {
+			t.Errorf("parseOctalMode(%q, %v) = %v, %v; want %v, %v", tc.s, tc.keep, got, ok, tc.want, tc.ok)
+		}
+	}
+	for _, tc := range []struct {
+		m    fs.FileMode
+		want string
+	}{
+		{0o755, "755"},
+		{0o640, "640"},
+		{0, "000"},
+		{fs.ModeSetuid | 0o755, "4755"},
+		{fs.ModeSetgid | fs.ModeSticky | 0o644, "3644"},
+		{fs.ModeDir | 0o755, "755"},
+	} {
+		if got := modeOctal(tc.m); got != tc.want {
+			t.Errorf("modeOctal(%v) = %q; want %q", tc.m, got, tc.want)
+		}
+	}
+}
+
+// The table's menu changes a file's permissions: the dialog shows its
+// mode, a checkbox and the octal number change it, and it is set on the
+// server; a bad octal number is refused.
+func TestFilePermissionsInTable(t *testing.T) {
+	f := newEditorFixture(t)
+	a, tt := f.a, f.tt
+
+	f.menu(t, "app.yaml", locales.Permissions())
+	d := a.fileDlg
+	if d == nil || d.op != opChmod || d.octal != "640" || d.mode.Perm() != 0o640 || !tt.HasText(locales.PermissionsTitle("app.yaml")) {
+		t.Fatalf("dialog %+v; texts %q", d, tt.Texts())
+	}
+
+	// The owner's Execute: the mode and the octal number follow.
+	if err := tt.Click(locales.PermissionsExecute()); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if d.mode.Perm() != 0o740 || d.octal != "740" {
+		t.Fatalf("after Execute: mode %v, octal %q", d.mode, d.octal)
+	}
+
+	// The octal field: 600, set on the server.
+	field, ok := tt.AccessByRole(ui.RoleTextField, locales.PermissionsOctal())
+	if !ok {
+		t.Fatalf("no octal field; texts %q", tt.Texts())
+	}
+	tt.ClickAt(field.Bounds.X+field.Bounds.W-4, field.Bounds.Y+field.Bounds.H/2)
+	tt.Key(0, ui.KeyEnd)
+	for range 3 {
+		tt.Key(0, ui.KeyBackspace)
+	}
+	tt.Type("600")
+	tt.Frame()
+	if d.mode.Perm() != 0o600 || d.octal != "600" {
+		t.Fatalf("after typing 600: mode %v, octal %q", d.mode, d.octal)
+	}
+	if err := tt.Click(locales.Ok()); err != nil {
+		t.Fatal(err)
+	}
+	f.settled(t)
+	if a.fileDlg != nil {
+		t.Fatalf("dialog %+v", a.fileDlg)
+	}
+	if fi, err := os.Lstat(filepath.Join(f.dir, "app.yaml")); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("app.yaml mode %v, err %v", fi.Mode(), err)
+	}
+	if !tt.HasText("rw-------") {
+		t.Errorf("no rw------- in the table; texts %q", tt.Texts())
+	}
+
+	// A bad octal number: the dialog says so and stays.
+	f.menu(t, "deploy.sh", locales.Permissions())
+	field, ok = tt.AccessByRole(ui.RoleTextField, locales.PermissionsOctal())
+	if !ok {
+		t.Fatalf("no octal field; texts %q", tt.Texts())
+	}
+	tt.ClickAt(field.Bounds.X+field.Bounds.W-4, field.Bounds.Y+field.Bounds.H/2)
+	tt.Key(0, ui.KeyEnd)
+	for range 3 {
+		tt.Key(0, ui.KeyBackspace)
+	}
+	tt.Type("888")
+	tt.Frame()
+	if !tt.HasText(locales.BadMode()) {
+		t.Errorf("no error for 888; texts %q", tt.Texts())
+	}
+	if err := tt.Click(locales.Ok()); err == nil {
+		tt.Frame()
+		if a.fileDlg == nil {
+			t.Error("OK on a bad octal number closed the dialog")
+		}
+	}
+	tt.Click(locales.Cancel())
+	tt.Frame()
+	if a.fileDlg != nil {
+		t.Fatal("Cancel left the dialog")
+	}
+	if fi, err := os.Lstat(filepath.Join(f.dir, "deploy.sh")); err != nil || fi.Mode().Perm() != 0o750 {
+		t.Fatalf("deploy.sh mode %v, err %v", fi.Mode(), err)
+	}
 }
