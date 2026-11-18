@@ -23,6 +23,8 @@
   <a href="#install">Install</a> · <a href="#features">Features</a> · <a href="#keyboard-shortcuts">Shortcuts</a> · <a href="docs/en/features.md">Full documentation</a>
 </p>
 
+> **Note:** This is a personal modified fork of [TooonyChen/finallyshell](https://github.com/TooonyChen/finallyshell), for noncommercial use. Thanks to the author! Changes so far: quick command buttons show names only, quick commands export/import, session tabs above the terminal, active-session highlighting, and file permissions from the file manager. Upstream releases live at the original repository; builds from this fork are tagged `0.2.0-lin.x`.
+
 <p align="center">
   <img src="docs/screenshots/main-en.png" alt="Finallyshell's main window: server monitor, session list, terminal and file panel">
 </p>

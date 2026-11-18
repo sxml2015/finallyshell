@@ -23,6 +23,8 @@
   <a href="#安装">安装</a> · <a href="#功能">功能</a> · <a href="#快捷键">快捷键</a> · <a href="docs/zh-CN/features.md">完整文档</a>
 </p>
 
+> **说明：** 这是 [TooonyChen/finallyshell](https://github.com/TooonyChen/finallyshell) 的个人修改版 fork，仅供非商业使用，感谢作者！目前的改动：命令快捷按钮只显示名称、命令快捷导出导入、会话标签移到终端上方、当前会话高亮、文件管理右键改权限。上游版本请看原仓库；这个 fork 的构建版本号为 `0.2.0-lin.x`。
+
 <p align="center">
   <img src="docs/screenshots/main-zh-CN.png" alt="Finallyshell 主窗口：服务器监控、会话列表、终端和文件面板">
 </p>
